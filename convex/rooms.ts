@@ -8,6 +8,8 @@ import {
   findPlayerSeat,
   isSeatOpen,
 } from "./lib/rooms";
+import { seatedPlayersFromRoom } from "./lib/games";
+import { createGame, startRound } from "./lib/rules";
 import type { Id } from "./_generated/dataModel";
 
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -28,6 +30,7 @@ const roomViewValidator = v.object({
     v.literal("playing"),
     v.literal("finished"),
   ),
+  gameId: v.optional(v.id("games")),
   seats: v.array(v.union(seatedPlayerValidator, v.null())),
   createdAt: v.number(),
 });
@@ -59,6 +62,7 @@ async function buildRoomView(
     code: string;
     hostId: Id<"users">;
     status: "lobby" | "playing" | "finished";
+    gameId?: Id<"games">;
     seats: Array<{ userId: Id<"users">; ready: boolean } | null>;
     createdAt: number;
   },
@@ -85,6 +89,7 @@ async function buildRoomView(
     code: room.code,
     hostId: room.hostId,
     status: room.status,
+    gameId: room.gameId,
     seats,
     createdAt: room.createdAt,
   };
@@ -237,7 +242,20 @@ export const startGame = mutation({
       throw new Error("Not all seated players are ready");
     }
 
-    await ctx.db.patch("rooms", room._id, { status: "playing" });
+    const players = seatedPlayersFromRoom(room);
+    const state = startRound(createGame({ players }));
+    const now = Date.now();
+    const gameId = await ctx.db.insert("games", {
+      roomId: room._id,
+      state,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await ctx.db.patch("rooms", room._id, {
+      status: "playing",
+      gameId,
+    });
     return null;
   },
 });

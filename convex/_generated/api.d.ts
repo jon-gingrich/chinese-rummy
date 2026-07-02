@@ -9,9 +9,16 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as games from "../games.js";
 import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_games from "../lib/games.js";
 import type * as lib_rooms from "../lib/rooms.js";
+import type * as lib_rules_cards from "../lib/rules/cards.js";
+import type * as lib_rules_engine from "../lib/rules/engine.js";
+import type * as lib_rules_index from "../lib/rules/index.js";
+import type * as lib_rules_types from "../lib/rules/types.js";
+import type * as lib_rules_validators from "../lib/rules/validators.js";
 import type * as rooms from "../rooms.js";
 import type * as users from "../users.js";
 
@@ -23,9 +30,16 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  games: typeof games;
   http: typeof http;
   "lib/auth": typeof lib_auth;
+  "lib/games": typeof lib_games;
   "lib/rooms": typeof lib_rooms;
+  "lib/rules/cards": typeof lib_rules_cards;
+  "lib/rules/engine": typeof lib_rules_engine;
+  "lib/rules/index": typeof lib_rules_index;
+  "lib/rules/types": typeof lib_rules_types;
+  "lib/rules/validators": typeof lib_rules_validators;
   rooms: typeof rooms;
   users: typeof users;
 }>;

@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { GameTable } from "../../../components/GameTable";
 
 export default function RoomLobbyPage() {
   const params = useParams<{ roomId: string }>();
@@ -117,12 +118,14 @@ export default function RoomLobbyPage() {
           <Link href="/home" className="text-sm text-[var(--muted)] hover:text-white">
             ← Home
           </Link>
-          <p className="text-sm uppercase tracking-[0.25em] text-[var(--accent)]">Room lobby</p>
+          <p className="text-sm uppercase tracking-[0.25em] text-[var(--accent)]">
+            {room.status === "lobby" ? "Room lobby" : "Game table"}
+          </p>
           <h1 className="font-mono text-4xl font-semibold tracking-[0.2em]">{room.code}</h1>
           <p className="text-sm text-[var(--muted)]">
             {room.status === "lobby"
               ? "Choose a seat, mark ready, and wait for the host to start."
-              : "Game started — card play arrives in the next slice."}
+              : "The game is in progress."}
           </p>
         </div>
         <div className="rounded-xl border border-white/10 bg-[var(--card)] px-4 py-3 text-sm">
@@ -131,6 +134,10 @@ export default function RoomLobbyPage() {
         </div>
       </header>
 
+      {room.status === "playing" ? <GameTable roomId={roomId} /> : null}
+
+      {room.status === "lobby" ? (
+        <>
       <section className="rounded-2xl border border-white/10 bg-[var(--card)] p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-medium">Invite link</h2>
@@ -229,6 +236,8 @@ export default function RoomLobbyPage() {
       ) : null}
 
       {status ? <p className="text-sm text-[var(--muted)]">{status}</p> : null}
+        </>
+      ) : null}
     </main>
   );
 }

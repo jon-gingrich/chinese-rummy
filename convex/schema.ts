@@ -1,6 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { authTables } from "@convex-dev/auth/server";
+import { gameStateValidator } from "./lib/rules/validators";
 
 export default defineSchema({
   ...authTables,
@@ -22,6 +23,7 @@ export default defineSchema({
       v.literal("playing"),
       v.literal("finished"),
     ),
+    gameId: v.optional(v.id("games")),
     seats: v.array(
       v.union(
         v.object({
@@ -35,4 +37,10 @@ export default defineSchema({
   })
     .index("by_code", ["code"])
     .index("by_host", ["hostId"]),
+  games: defineTable({
+    roomId: v.id("rooms"),
+    state: gameStateValidator,
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_room", ["roomId"]),
 });

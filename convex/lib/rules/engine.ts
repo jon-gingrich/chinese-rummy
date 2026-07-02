@@ -1,0 +1,268 @@
+import { buildShoe, shuffleCards } from "./cards";
+import type {
+  Action,
+  ApplyActionResult,
+  CreateGameConfig,
+  GameState,
+  LegalActions,
+  PlayerState,
+  ShuffleOptions,
+} from "./types";
+
+const CARDS_PER_HAND = 13;
+
+function sortPlayersBySeat(players: CreateGameConfig["players"]): PlayerState[] {
+  return [...players]
+    .sort((left, right) => left.seatIndex - right.seatIndex)
+    .map((player) => ({
+      id: player.id,
+      seatIndex: player.seatIndex,
+      playerPhase: "notOpened" as const,
+      hand: [],
+    }));
+}
+
+function seatedIndices(state: GameState): number[] {
+  return state.players.map((player) => player.seatIndex).sort((a, b) => a - b);
+}
+
+function nextSeatClockwise(state: GameState, seatIndex: number): number {
+  const seats = seatedIndices(state);
+  const currentIndex = seats.indexOf(seatIndex);
+  if (currentIndex === -1) {
+    throw new Error("Seat not found");
+  }
+  return seats[(currentIndex + 1) % seats.length]!;
+}
+
+function findPlayer(state: GameState, playerId: string): PlayerState | undefined {
+  return state.players.find((player) => player.id === playerId);
+}
+
+function isActivePlayer(state: GameState, playerId: string): boolean {
+  const player = findPlayer(state, playerId);
+  return player?.seatIndex === state.activeSeatIndex;
+}
+
+function cardInHand(hand: PlayerState["hand"], cardId: string): boolean {
+  return hand.some((card) => card.id === cardId);
+}
+
+function removeCardFromHand(hand: PlayerState["hand"], card: PlayerState["hand"][number]) {
+  return hand.filter((entry) => entry.id !== card.id);
+}
+
+function reshuffleStockFromDiscard(state: GameState): GameState | { error: string } {
+  if (state.discard.length <= 1) {
+    return { error: "Stock is empty" };
+  }
+
+  const topDiscard = state.discard[state.discard.length - 1]!;
+  const toShuffle = state.discard.slice(0, -1);
+
+  return {
+    ...state,
+    stock: shuffleCards(toShuffle),
+    discard: [topDiscard],
+  };
+}
+
+export function createGame(config: CreateGameConfig): GameState {
+  const players = sortPlayersBySeat(config.players);
+  if (players.length < 2 || players.length > 5) {
+    throw new Error("Game requires two to five players");
+  }
+
+  return {
+    phase: "playing",
+    roundNumber: 0,
+    roundPhase: "active",
+    players,
+    dealerSeatIndex: players[0]!.seatIndex,
+    activeSeatIndex: players[0]!.seatIndex,
+    turnPhase: "draw",
+    stock: [],
+    discard: [],
+    melds: [],
+    cumulativeScores: players.map(() => 0),
+  };
+}
+
+export function startRound(state: GameState, options: ShuffleOptions = {}): GameState {
+  const shuffled = shuffleCards(buildShoe(), options.seed);
+  const playerCount = state.players.length;
+  const cardsNeeded = playerCount * CARDS_PER_HAND;
+
+  if (shuffled.length < cardsNeeded) {
+    throw new Error("Shoe does not have enough cards to deal");
+  }
+
+  const hands = shuffled.slice(0, cardsNeeded);
+  const remainingStock = shuffled.slice(cardsNeeded);
+
+  const dealerSeatIndex =
+    state.roundNumber === 0
+      ? state.players[0]!.seatIndex
+      : nextSeatClockwise(
+          state,
+          state.dealerSeatIndex,
+        );
+
+  const leadSeatIndex = nextSeatClockwise(
+    { ...state, dealerSeatIndex },
+    dealerSeatIndex,
+  );
+
+  const players = state.players.map((player, index) => ({
+    ...player,
+    playerPhase: "notOpened" as const,
+    hand: hands.slice(index * CARDS_PER_HAND, (index + 1) * CARDS_PER_HAND),
+  }));
+
+  return {
+    ...state,
+    roundNumber: state.roundNumber + 1,
+    roundPhase: "active",
+    players,
+    dealerSeatIndex,
+    activeSeatIndex: leadSeatIndex,
+    turnPhase: "draw",
+    stock: remainingStock,
+    discard: [],
+    melds: [],
+  };
+}
+
+export function legalActions(state: GameState, playerId: string): LegalActions {
+  if (!isActivePlayer(state, playerId)) {
+    return {
+      canDrawFromStock: false,
+      canDrawFromDiscard: false,
+      canDiscard: false,
+      discardableCards: [],
+    };
+  }
+
+  const player = findPlayer(state, playerId);
+  if (!player) {
+    return {
+      canDrawFromStock: false,
+      canDrawFromDiscard: false,
+      canDiscard: false,
+      discardableCards: [],
+    };
+  }
+
+  if (state.turnPhase === "draw") {
+    const canDrawFromStock =
+      state.stock.length > 0 || state.discard.length > 1;
+    return {
+      canDrawFromStock,
+      canDrawFromDiscard: state.discard.length > 0,
+      canDiscard: false,
+      discardableCards: [],
+    };
+  }
+
+  return {
+    canDrawFromStock: false,
+    canDrawFromDiscard: false,
+    canDiscard: true,
+    discardableCards: [...player.hand],
+  };
+}
+
+export function applyAction(
+  state: GameState,
+  action: Action,
+  playerId: string,
+): ApplyActionResult {
+  if (!isActivePlayer(state, playerId)) {
+    return { state, error: "Not your turn" };
+  }
+
+  const playerIndex = state.players.findIndex((entry) => entry.id === playerId);
+  if (playerIndex === -1) {
+    return { state, error: "Player not found" };
+  }
+
+  if (action.kind === "draw") {
+    if (state.turnPhase !== "draw") {
+      return { state, error: "Already drew this turn" };
+    }
+
+    if (action.source === "discard") {
+      if (state.discard.length === 0) {
+        return { state, error: "Discard pile is empty" };
+      }
+
+      const drawn = state.discard[state.discard.length - 1]!;
+      const players = [...state.players];
+      const player = players[playerIndex]!;
+      players[playerIndex] = {
+        ...player,
+        hand: [...player.hand, drawn],
+      };
+
+      return {
+        state: {
+          ...state,
+          players,
+          discard: state.discard.slice(0, -1),
+          turnPhase: "discard",
+        },
+      };
+    }
+
+    let workingState = state;
+    if (workingState.stock.length === 0) {
+      const reshuffled = reshuffleStockFromDiscard(workingState);
+      if ("error" in reshuffled) {
+        return { state, error: reshuffled.error };
+      }
+      workingState = reshuffled;
+    }
+
+    const drawn = workingState.stock[workingState.stock.length - 1]!;
+    const players = [...workingState.players];
+    const player = players[playerIndex]!;
+    players[playerIndex] = {
+      ...player,
+      hand: [...player.hand, drawn],
+    };
+
+    return {
+      state: {
+        ...workingState,
+        players,
+        stock: workingState.stock.slice(0, -1),
+        turnPhase: "discard",
+      },
+    };
+  }
+
+  if (state.turnPhase !== "discard") {
+    return { state, error: "Must draw before discarding" };
+  }
+
+  const player = state.players[playerIndex]!;
+  if (!cardInHand(player.hand, action.card.id)) {
+    return { state, error: "Card not in hand" };
+  }
+
+  const players = [...state.players];
+  players[playerIndex] = {
+    ...player,
+    hand: removeCardFromHand(player.hand, action.card),
+  };
+
+  return {
+    state: {
+      ...state,
+      players,
+      discard: [...state.discard, action.card],
+      activeSeatIndex: nextSeatClockwise(state, state.activeSeatIndex),
+      turnPhase: "draw",
+    },
+  };
+}

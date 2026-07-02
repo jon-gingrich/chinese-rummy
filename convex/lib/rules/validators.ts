@@ -1,0 +1,97 @@
+import { v } from "convex/values";
+
+export const suitValidator = v.union(
+  v.literal("clubs"),
+  v.literal("diamonds"),
+  v.literal("hearts"),
+  v.literal("spades"),
+  v.literal("joker"),
+);
+
+export const rankValidator = v.union(
+  v.literal("A"),
+  v.literal("2"),
+  v.literal("3"),
+  v.literal("4"),
+  v.literal("5"),
+  v.literal("6"),
+  v.literal("7"),
+  v.literal("8"),
+  v.literal("9"),
+  v.literal("10"),
+  v.literal("J"),
+  v.literal("Q"),
+  v.literal("K"),
+  v.literal("JOKER"),
+);
+
+export const cardValidator = v.object({
+  id: v.string(),
+  suit: suitValidator,
+  rank: rankValidator,
+  deckIndex: v.union(v.literal(0), v.literal(1)),
+});
+
+export const playerStateValidator = v.object({
+  id: v.string(),
+  seatIndex: v.number(),
+  playerPhase: v.union(v.literal("notOpened"), v.literal("opened")),
+  hand: v.array(cardValidator),
+});
+
+export const gameStateValidator = v.object({
+  phase: v.union(v.literal("playing"), v.literal("roundEnd"), v.literal("gameEnd")),
+  roundNumber: v.number(),
+  roundPhase: v.union(v.literal("active"), v.literal("scored")),
+  players: v.array(playerStateValidator),
+  dealerSeatIndex: v.number(),
+  activeSeatIndex: v.number(),
+  turnPhase: v.union(v.literal("draw"), v.literal("discard")),
+  stock: v.array(cardValidator),
+  discard: v.array(cardValidator),
+  melds: v.array(
+    v.object({
+      ownerId: v.string(),
+      cards: v.array(cardValidator),
+    }),
+  ),
+  cumulativeScores: v.array(v.number()),
+});
+
+export const legalActionsValidator = v.object({
+  canDrawFromStock: v.boolean(),
+  canDrawFromDiscard: v.boolean(),
+  canDiscard: v.boolean(),
+  discardableCards: v.array(cardValidator),
+});
+
+export const tablePlayerValidator = v.object({
+  id: v.string(),
+  seatIndex: v.number(),
+  displayName: v.string(),
+  handSize: v.number(),
+  playerPhase: v.union(v.literal("notOpened"), v.literal("opened")),
+  isActive: v.boolean(),
+  isDealer: v.boolean(),
+});
+
+export const tableViewValidator = v.object({
+  _id: v.id("games"),
+  roomId: v.id("rooms"),
+  roundNumber: v.number(),
+  phase: v.union(v.literal("playing"), v.literal("roundEnd"), v.literal("gameEnd")),
+  turnPhase: v.union(v.literal("draw"), v.literal("discard")),
+  activeSeatIndex: v.number(),
+  dealerSeatIndex: v.number(),
+  topDiscard: v.union(cardValidator, v.null()),
+  stockCount: v.number(),
+  players: v.array(tablePlayerValidator),
+  cumulativeScores: v.array(v.number()),
+});
+
+export const actionResultValidator = v.object({
+  table: tableViewValidator,
+  hand: v.array(cardValidator),
+  legalActions: legalActionsValidator,
+  error: v.optional(v.string()),
+});
