@@ -2,19 +2,32 @@
 
 import { useAuthActions } from "@convex-dev/auth/react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { rememberGuestUserId } from "../../lib/guestSession";
+import { useGuestAuth } from "../../hooks/useGuestAuth";
 
 export default function SignInPage() {
   const { signIn } = useAuthActions();
+  const { viewer } = useGuestAuth();
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get("returnTo") ?? "/home";
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState<"google" | "email" | null>(null);
 
+  function rememberGuestBeforeLinking() {
+    if (viewer?.isGuest) {
+      rememberGuestUserId(viewer.userId);
+    }
+  }
+
   async function handleGoogleSignIn() {
+    rememberGuestBeforeLinking();
     setLoading("google");
     setMessage(null);
     try {
-      await signIn("google", { redirectTo: "/home" });
+      await signIn("google", { redirectTo: returnTo });
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Google sign-in failed");
       setLoading(null);
@@ -23,10 +36,11 @@ export default function SignInPage() {
 
   async function handleEmailSignIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    rememberGuestBeforeLinking();
     setLoading("email");
     setMessage(null);
     try {
-      await signIn("resend", { email, redirectTo: "/home" });
+      await signIn("resend", { email, redirectTo: returnTo });
       setMessage("Check your email for a magic link.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Magic link failed");

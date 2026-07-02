@@ -11,16 +11,24 @@ export default function LandingPage() {
           Chinese Rummy
         </h1>
         <p className="text-[var(--muted)]">
-          Play your house rules online with two to five players. Sign in to set
-          your table name and get ready for the first room.
+          Play your house rules online with two to five players. Jump in as a
+          guest or sign in to resume games across devices.
         </p>
       </div>
-      <Link
-        href="/sign-in"
-        className="rounded-full bg-[var(--accent)] px-8 py-3 text-sm font-semibold text-black transition hover:brightness-110"
-      >
-        Sign in to play
-      </Link>
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        <Link
+          href="/join"
+          className="rounded-full bg-[var(--accent)] px-8 py-3 text-sm font-semibold text-black transition hover:brightness-110"
+        >
+          Play as guest
+        </Link>
+        <Link
+          href="/sign-in"
+          className="rounded-full border border-white/10 px-8 py-3 text-sm font-medium hover:border-white/20"
+        >
+          Sign in
+        </Link>
+      </div>
     </main>
   );
 }

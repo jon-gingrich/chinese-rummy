@@ -7,11 +7,13 @@ import { useEffect, useState } from "react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { GameTable } from "../../../components/GameTable";
+import { LinkAccountPrompt } from "../../../components/LinkAccountPrompt";
+import { useGuestAuth } from "../../../hooks/useGuestAuth";
 
 export default function RoomLobbyPage() {
   const params = useParams<{ roomId: string }>();
   const roomId = params.roomId as Id<"rooms">;
-  const viewer = useQuery(api.users.viewer);
+  const { viewer, isLoading, isGuest } = useGuestAuth();
   const ensureCurrentUser = useMutation(api.users.ensureCurrentUser);
   const room = useQuery(api.rooms.getRoom, { roomId });
   const joinSeat = useMutation(api.rooms.joinSeat);
@@ -22,8 +24,10 @@ export default function RoomLobbyPage() {
   const [starting, setStarting] = useState(false);
 
   useEffect(() => {
-    void ensureCurrentUser().catch(() => undefined);
-  }, [ensureCurrentUser]);
+    if (viewer) {
+      void ensureCurrentUser().catch(() => undefined);
+    }
+  }, [ensureCurrentUser, viewer]);
 
   const mySeatIndex =
     viewer && room
@@ -92,7 +96,7 @@ export default function RoomLobbyPage() {
     setStatus("Invite link copied.");
   }
 
-  if (room === undefined || viewer === undefined) {
+  if (room === undefined || isLoading || viewer === null) {
     return (
       <main className="mx-auto flex min-h-screen max-w-2xl items-center justify-center px-6">
         <p className="text-[var(--muted)]">Loading room…</p>
@@ -133,6 +137,10 @@ export default function RoomLobbyPage() {
           <p className="text-2xl font-semibold">{seatedCount} / 5</p>
         </div>
       </header>
+
+      {isGuest && viewer ? (
+        <LinkAccountPrompt userId={viewer.userId} />
+      ) : null}
 
       {room.status === "playing" ? <GameTable roomId={roomId} /> : null}
 

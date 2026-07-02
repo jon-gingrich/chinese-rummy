@@ -11,6 +11,7 @@
 import type * as auth from "../auth.js";
 import type * as games from "../games.js";
 import type * as http from "../http.js";
+import type * as lib_accountLinking from "../lib/accountLinking.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_games from "../lib/games.js";
 import type * as lib_rooms from "../lib/rooms.js";
@@ -36,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   games: typeof games;
   http: typeof http;
+  "lib/accountLinking": typeof lib_accountLinking;
   "lib/auth": typeof lib_auth;
   "lib/games": typeof lib_games;
   "lib/rooms": typeof lib_rooms;

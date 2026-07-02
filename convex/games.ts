@@ -77,6 +77,9 @@ export const getMyGames = query({
   returns: v.array(myGameSummaryValidator),
   handler: async (ctx) => {
     const user = await getCurrentUser(ctx);
+    if (user.isAnonymous) {
+      return [];
+    }
     const memberships = await ctx.db
       .query("gameParticipants")
       .withIndex("by_user", (q) => q.eq("userId", user._id))

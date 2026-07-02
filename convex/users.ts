@@ -2,11 +2,13 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getCurrentUser, getCurrentUserOrNull, playerDisplayName } from "./lib/auth";
+import { mergeGuestUserData } from "./lib/accountLinking";
 
 const playerValidator = v.object({
   userId: v.id("users"),
   displayName: v.string(),
   email: v.optional(v.string()),
+  isGuest: v.boolean(),
 });
 
 export const viewer = query({
@@ -21,6 +23,33 @@ export const viewer = query({
       userId: user._id,
       displayName: playerDisplayName(user),
       email: user.email,
+      isGuest: user.isAnonymous === true,
+    };
+  },
+});
+
+export const mergeGuestAccount = mutation({
+  args: {
+    guestUserId: v.id("users"),
+  },
+  returns: playerValidator,
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    await mergeGuestUserData(ctx, {
+      guestUserId: args.guestUserId,
+      targetUserId: user._id,
+    });
+
+    const updated = await ctx.db.get("users", user._id);
+    if (!updated) {
+      throw new Error("User not found");
+    }
+
+    return {
+      userId: updated._id,
+      displayName: playerDisplayName(updated),
+      email: updated.email,
+      isGuest: updated.isAnonymous === true,
     };
   },
 });
@@ -51,6 +80,7 @@ export const updateDisplayName = mutation({
       userId: updated._id,
       displayName: playerDisplayName(updated),
       email: updated.email,
+      isGuest: updated.isAnonymous === true,
     };
   },
 });
@@ -73,6 +103,7 @@ export const ensureCurrentUser = mutation({
       userId: user._id,
       displayName: playerDisplayName(user),
       email: user.email,
+      isGuest: user.isAnonymous === true,
     };
   },
 });

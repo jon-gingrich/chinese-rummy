@@ -1,11 +1,12 @@
 "use client";
 
-import { useAuthActions } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { api } from "../../../convex/_generated/api";
+import { LinkAccountPrompt } from "../../components/LinkAccountPrompt";
+import { useGuestAuth } from "../../hooks/useGuestAuth";
 
 function MyGamesList() {
   const router = useRouter();
@@ -91,17 +92,18 @@ function RoomActions() {
 }
 
 export default function HomePage() {
-  const viewer = useQuery(api.users.viewer);
+  const { viewer, isLoading, isGuest } = useGuestAuth();
   const ensureCurrentUser = useMutation(api.users.ensureCurrentUser);
   const updateDisplayName = useMutation(api.users.updateDisplayName);
-  const { signOut } = useAuthActions();
   const [displayName, setDisplayName] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    void ensureCurrentUser().catch(() => undefined);
-  }, [ensureCurrentUser]);
+    if (viewer) {
+      void ensureCurrentUser().catch(() => undefined);
+    }
+  }, [ensureCurrentUser, viewer]);
 
   useEffect(() => {
     if (viewer?.displayName) {
@@ -124,7 +126,7 @@ export default function HomePage() {
     }
   }
 
-  if (viewer === undefined) {
+  if (isLoading || !viewer) {
     return (
       <main className="mx-auto flex min-h-screen max-w-lg items-center justify-center px-6">
         <p className="text-[var(--muted)]">Loading your profile…</p>
@@ -132,36 +134,36 @@ export default function HomePage() {
     );
   }
 
-  if (viewer === null) {
-    return (
-      <main className="mx-auto flex min-h-screen max-w-lg items-center justify-center px-6">
-        <p className="text-[var(--muted)]">Sign in to manage your profile.</p>
-      </main>
-    );
-  }
-
-  const profile = viewer;
-
   return (
     <main className="mx-auto flex min-h-screen max-w-lg flex-col gap-8 px-6 py-12">
       <header className="flex items-start justify-between gap-4">
         <div className="space-y-1">
           <p className="text-sm uppercase tracking-[0.25em] text-[var(--accent)]">
-            Welcome
+            {isGuest ? "Guest table" : "Welcome"}
           </p>
-          <h1 className="text-3xl font-semibold">{profile.displayName}</h1>
-          {profile.email ? (
-            <p className="text-sm text-[var(--muted)]">{profile.email}</p>
+          <h1 className="text-3xl font-semibold">{viewer.displayName}</h1>
+          {viewer.email ? (
+            <p className="text-sm text-[var(--muted)]">{viewer.email}</p>
+          ) : isGuest ? (
+            <p className="text-sm text-[var(--muted)]">Playing without an account</p>
           ) : null}
         </div>
-        <button
-          type="button"
-          onClick={() => void signOut()}
-          className="rounded-lg border border-white/10 px-3 py-2 text-sm text-[var(--muted)] hover:text-white"
-        >
-          Sign out
-        </button>
+        {!isGuest ? (
+          <Link
+            href="/sign-in"
+            className="rounded-lg border border-white/10 px-3 py-2 text-sm text-[var(--muted)] hover:text-white"
+          >
+            Account
+          </Link>
+        ) : null}
       </header>
+
+      {isGuest ? (
+        <LinkAccountPrompt
+          userId={viewer.userId}
+          description="Link an account before using My games to resume on another device."
+        />
+      ) : null}
 
       <section className="rounded-2xl border border-white/10 bg-[var(--card)] p-6">
         <h2 className="text-lg font-medium">Display name</h2>
@@ -191,9 +193,17 @@ export default function HomePage() {
       <section className="rounded-2xl border border-white/10 bg-[var(--card)] p-6">
         <h2 className="text-lg font-medium">My games</h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Resume a game you left — your seat, hand, and scores are saved.
+          {isGuest
+            ? "Sign in to keep a list of games you can resume later."
+            : "Resume a game you left — your seat, hand, and scores are saved."}
         </p>
-        <MyGamesList />
+        {isGuest ? (
+          <p className="mt-4 text-sm text-[var(--muted)]">
+            Guest sessions work in this browser only.
+          </p>
+        ) : (
+          <MyGamesList />
+        )}
       </section>
 
       <section className="rounded-2xl border border-white/10 bg-[var(--card)] p-6">

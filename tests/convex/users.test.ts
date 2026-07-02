@@ -32,6 +32,7 @@ describe("users.updateDisplayName", () => {
     expect(viewer).toMatchObject({
       displayName: "Table Pat",
       email: "pat@example.com",
+      isGuest: false,
     });
   });
 

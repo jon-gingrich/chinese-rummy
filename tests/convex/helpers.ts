@@ -27,3 +27,19 @@ export async function withSeededPlayer(
     name: profile.name,
   });
 }
+
+export async function withAnonymousPlayer(
+  t: TestConvex<SchemaDefinition<GenericSchema, boolean>>,
+  profile: { displayName: string },
+) {
+  const userId = await t.run(async (ctx) => {
+    return await ctx.db.insert("users", {
+      isAnonymous: true,
+      displayName: profile.displayName,
+    });
+  });
+
+  return t.withIdentity({
+    subject: `${userId}|test-session`,
+  });
+}

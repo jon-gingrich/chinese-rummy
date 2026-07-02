@@ -5,18 +5,21 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { api } from "../../../convex/_generated/api";
+import { useGuestAuth } from "../../hooks/useGuestAuth";
 
 export default function JoinRoomPage() {
   const router = useRouter();
-  const viewer = useQuery(api.users.viewer);
+  const { viewer, isLoading } = useGuestAuth();
   const ensureCurrentUser = useMutation(api.users.ensureCurrentUser);
   const [code, setCode] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    void ensureCurrentUser().catch(() => undefined);
-  }, [ensureCurrentUser]);
+    if (viewer) {
+      void ensureCurrentUser().catch(() => undefined);
+    }
+  }, [ensureCurrentUser, viewer]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -49,7 +52,7 @@ export default function JoinRoomPage() {
     }
   }
 
-  if (viewer === undefined) {
+  if (isLoading || viewer === null) {
     return (
       <main className="mx-auto flex min-h-screen max-w-lg items-center justify-center px-6">
         <p className="text-[var(--muted)]">Loading…</p>
