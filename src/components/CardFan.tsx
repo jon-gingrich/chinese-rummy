@@ -2,6 +2,8 @@
 
 import type { Card } from "../../convex/lib/rules/types";
 import {
+  fanCardStep,
+  fanContainerHeight,
   fanRotation,
   fanTranslateY,
   formatCardLabel,
@@ -33,6 +35,9 @@ export function CardFan({
 }: CardFanProps) {
   const sortedCards = sortHand(cards, sortMode);
   const selectedSet = new Set(selectedIds ?? (selectedId ? [selectedId] : []));
+  const cardStep = fanCardStep(sortedCards.length);
+  const containerHeight = fanContainerHeight(sortedCards.length);
+  const fanWidth = Math.max(sortedCards.length * cardStep + 64, 280);
 
   return (
     <div className="space-y-4">
@@ -64,10 +69,15 @@ export function CardFan({
         </div>
       ) : null}
 
-      <div className="overflow-x-auto pb-2">
+      <div className="-mx-2 overflow-x-auto px-2 pb-3 pt-6 [scrollbar-width:thin]">
         <div
-          className="mx-auto flex min-h-28 items-end justify-center px-2"
-          style={{ minWidth: `${Math.max(sortedCards.length * 44, 220)}px` }}
+          className="relative mx-auto flex items-end justify-center"
+          style={{
+            width: `${fanWidth}px`,
+            minHeight: `${containerHeight}px`,
+            paddingLeft: "20px",
+            paddingRight: "20px",
+          }}
         >
           {sortedCards.map((card, index) => {
             const selected = selectedSet.has(card.id);
@@ -81,12 +91,15 @@ export function CardFan({
                 disabled={disabled}
                 onClick={() => onToggle(card.id)}
                 aria-pressed={selected}
-                className={`relative -mx-1 h-24 w-14 shrink-0 rounded-xl border px-1 py-2 text-xs font-semibold shadow-lg transition ${
+                className={`relative h-28 w-16 shrink-0 rounded-xl border px-1 py-2 text-sm font-semibold shadow-lg transition ${
+                  index === 0 ? "ml-0" : ""
+                } ${
                   selected
                     ? "border-[var(--accent)] bg-[var(--accent)]/25 ring-2 ring-[var(--accent)]/40"
                     : "border-white/15 bg-[#f8f4ea] text-slate-900"
                 } ${suitColorClass(card.suit)} disabled:cursor-default disabled:opacity-60`}
                 style={{
+                  marginLeft: index === 0 ? 0 : `${cardStep - 64}px`,
                   transform: `rotate(${rotation}deg) translateY(${translateY}px)`,
                   transformOrigin: "bottom center",
                   zIndex: selected ? sortedCards.length + 1 : index + 1,

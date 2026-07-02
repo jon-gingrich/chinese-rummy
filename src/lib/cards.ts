@@ -84,10 +84,25 @@ export function fanRotation(index: number, total: number): number {
   if (total <= 1) {
     return 0;
   }
-  const spread = Math.min(total * 7, 48);
+  const spread = Math.min(total * 5, total > 10 ? 34 : 44);
   const start = -spread / 2;
   const step = spread / (total - 1);
   return start + index * step;
+}
+
+export function fanCardStep(total: number): number {
+  if (total <= 8) {
+    return 42;
+  }
+  if (total <= 11) {
+    return 36;
+  }
+  return 32;
+}
+
+export function fanContainerHeight(total: number): number {
+  const spread = total <= 1 ? 0 : Math.min(total * 5, total > 10 ? 34 : 44);
+  return 112 + spread;
 }
 
 export function fanTranslateY(index: number, total: number): number {
