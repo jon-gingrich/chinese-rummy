@@ -13,7 +13,7 @@ import {
 import { getCurrentUser } from "./lib/auth";
 import { applyAction, continueToNextRound, legalActions } from "./lib/rules";
 import type { GameState } from "./lib/rules";
-import { formatContract } from "./lib/rules/contracts";
+import { effectiveContractRound, formatContract } from "./lib/rules/contracts";
 import {
   actionResultValidator,
   cardValidator,
@@ -63,7 +63,7 @@ async function persistAndRespond(
     }
   }
 
-  const table = await buildTableView(ctx, { ...game, state }, state);
+  const table = await buildTableView(ctx, { ...game, state }, state, playerId);
   return {
     table,
     hand: handForPlayer(state, playerId),
@@ -97,12 +97,16 @@ export const getMyGames = query({
           if (state.phase === "gameEnd") {
             return null;
           }
+          const viewer = state.players.find((player) => player.id === user._id);
+          const contractRound = viewer
+            ? effectiveContractRound(viewer, state.roundNumber)
+            : state.roundNumber;
           return {
             roomId: membership.roomId,
             roomCode: membership.roomCode,
             gameId: membership.gameId,
             roundNumber: state.roundNumber,
-            contract: formatContract(state.roundNumber),
+            contract: formatContract(contractRound),
             phase: state.phase,
             playerCount: state.players.length,
             updatedAt: game.updatedAt,
@@ -120,7 +124,7 @@ export const getGame = query({
   args: { roomId: v.id("rooms") },
   returns: v.union(tableViewValidator, v.null()),
   handler: async (ctx, args) => {
-    await getCurrentUser(ctx);
+    const user = await getCurrentUser(ctx);
     const room = await ctx.db.get("rooms", args.roomId);
     if (!room?.gameId) {
       return null;
@@ -129,7 +133,7 @@ export const getGame = query({
     if (!game) {
       return null;
     }
-    return await buildTableView(ctx, game, game.state as GameState);
+    return await buildTableView(ctx, game, game.state as GameState, user._id);
   },
 });
 

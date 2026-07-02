@@ -90,6 +90,7 @@ export const layOffTargetValidator = v.union(
 export const playerStateValidator = v.object({
   id: v.string(),
   seatIndex: v.number(),
+  contractRound: v.optional(v.number()),
   playerPhase: v.union(v.literal("notOpened"), v.literal("opened")),
   openedThisTurn: v.optional(v.boolean()),
   hand: v.array(cardValidator),
@@ -133,6 +134,8 @@ export const tablePlayerValidator = v.object({
   seatIndex: v.number(),
   displayName: v.string(),
   handSize: v.number(),
+  contractRound: v.number(),
+  contract: v.string(),
   playerPhase: v.union(v.literal("notOpened"), v.literal("opened")),
   isActive: v.boolean(),
   isDealer: v.boolean(),

@@ -1,34 +1,32 @@
 import Link from "next/link";
+import { AppShell } from "@/components/AppShell";
 
 export default function LandingPage() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-8 px-6 text-center">
-      <div className="space-y-3">
-        <p className="text-sm uppercase tracking-[0.3em] text-[var(--accent)]">
-          Family contract rummy
-        </p>
-        <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-          Chinese Rummy
-        </h1>
-        <p className="text-[var(--muted)]">
-          Play your house rules online with two to five players. Jump in as a
-          guest or sign in to resume games across devices.
-        </p>
-      </div>
-      <div className="flex flex-wrap items-center justify-center gap-3">
-        <Link
-          href="/join"
-          className="rounded-full bg-[var(--accent)] px-8 py-3 text-sm font-semibold text-black transition hover:brightness-110"
-        >
-          Play as guest
-        </Link>
-        <Link
-          href="/sign-in"
-          className="rounded-full border border-white/10 px-8 py-3 text-sm font-medium hover:border-white/20"
-        >
-          Sign in
-        </Link>
-      </div>
-    </main>
+    <AppShell wide>
+      <main className="flex min-h-[70vh] flex-col items-center justify-center gap-10 text-center">
+        <div className="space-y-4">
+          <p className="text-5xl">🃏</p>
+          <p className="text-sm font-bold uppercase tracking-[0.35em] text-[var(--accent-soft)]">
+            Family contract rummy
+          </p>
+          <h1 className="text-4xl font-extrabold tracking-tight text-[var(--cream)] sm:text-5xl">
+            Chinese Rummy
+          </h1>
+          <p className="mx-auto max-w-lg text-[var(--muted)]">
+            Play your house rules online with two to five players. Gather around the virtual table
+            on iPad or desktop — jump in as a guest or sign in to resume games.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Link href="/join" className="game-btn-primary px-8 py-3">
+            Play as guest
+          </Link>
+          <Link href="/sign-in" className="game-btn-secondary px-8 py-3">
+            Sign in
+          </Link>
+        </div>
+      </main>
+    </AppShell>
   );
 }

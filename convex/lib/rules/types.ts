@@ -60,6 +60,8 @@ export type OpeningMeld = {
 export type PlayerState = {
   id: string;
   seatIndex: number;
+  /** Contract round (1–10). Players who fail to open keep the same round next hand. */
+  contractRound?: number;
   playerPhase: PlayerPhase;
   openedThisTurn?: boolean;
   hand: Card[];

@@ -1,6 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { authTables } from "@convex-dev/auth/server";
+import { playerPreferencesFields } from "./lib/playerPreferences";
 import { gameStateValidator } from "./lib/rules/validators";
 
 export default defineSchema({
@@ -14,6 +15,7 @@ export default defineSchema({
     phoneVerificationTime: v.optional(v.number()),
     isAnonymous: v.optional(v.boolean()),
     displayName: v.optional(v.string()),
+    preferences: v.optional(v.object(playerPreferencesFields)),
   }).index("email", ["email"]),
   rooms: defineTable({
     code: v.string(),

@@ -1,11 +1,11 @@
 import { buildShoe, shuffleCards } from "./cards";
+import { allContractsFulfilled, advanceContractRound } from "./contracts";
 import { validateOpeningMelds } from "./melds";
 import { findLayOffTargets, applyLayOff, validateLayOff } from "./layoffs";
 import {
   gameComplete,
   lowestScoreWinnerIds,
   scoreRound,
-  TOTAL_ROUNDS,
 } from "./scoring";
 import type {
   Action,
@@ -27,6 +27,7 @@ function sortPlayersBySeat(players: CreateGameConfig["players"]): PlayerState[] 
     .map((player) => ({
       id: player.id,
       seatIndex: player.seatIndex,
+      contractRound: 1,
       playerPhase: "notOpened" as const,
       openedThisTurn: false,
       hand: [],
@@ -103,7 +104,7 @@ function finishRound(state: GameState, goerPlayerId: string): GameState {
     cumulativeScores,
   };
 
-  if (state.roundNumber >= TOTAL_ROUNDS) {
+  if (allContractsFulfilled(state.players, state.roundNumber)) {
     return {
       ...state,
       phase: "gameEnd",
@@ -197,6 +198,7 @@ export function startRound(state: GameState, options: ShuffleOptions = {}): Game
 
   const players = state.players.map((player, index) => ({
     ...player,
+    contractRound: advanceContractRound(player, state.roundNumber),
     playerPhase: "notOpened" as const,
     openedThisTurn: false,
     hand: hands.slice(index * CARDS_PER_HAND, (index + 1) * CARDS_PER_HAND),
@@ -383,7 +385,8 @@ export function applyAction(
       return { state, error: ownershipError };
     }
 
-    const validationError = validateOpeningMelds(action.melds, state.roundNumber);
+    const contractRound = player.contractRound ?? state.roundNumber;
+    const validationError = validateOpeningMelds(action.melds, contractRound);
     if (validationError) {
       return { state, error: validationError };
     }

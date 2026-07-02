@@ -88,6 +88,10 @@ _Avoid_: Lay-down turn, going in, meld-in
 A player who has completed their opening turn for the current round.
 _Avoid_: In, down, melded in
 
+**Contract holdover**:
+If someone goes out before you open, you keep the same contract requirement on the next hand. Players who opened advance to the next contract when the next hand is dealt.
+_Avoid_: Skipped round, stuck on contract
+
 **Lay off**:
 Adding a card to an existing meld on the table after your opening turn. Includes wild replacement with relocation.
 _Avoid_: Add on, extend, hit

@@ -66,6 +66,42 @@ export function formatContract(roundNumber: number): string {
   return getContractForRound(roundNumber).map(requirementLabel).join(", ");
 }
 
+import type { PlayerState } from "./types";
+import { TOTAL_ROUNDS } from "./scoring";
+
+/** Legacy games store only a table-wide round number; treat that as each player's contract. */
+export function effectiveContractRound(player: PlayerState, gameRoundNumber: number): number {
+  return player.contractRound ?? gameRoundNumber;
+}
+
+export function projectedContractRound(
+  player: PlayerState,
+  gameRoundNumber: number,
+): number {
+  const round = effectiveContractRound(player, gameRoundNumber);
+  return player.playerPhase === "opened" ? round + 1 : round;
+}
+
+export function allContractsFulfilled(
+  players: PlayerState[],
+  gameRoundNumber: number,
+): boolean {
+  return players.every(
+    (player) => projectedContractRound(player, gameRoundNumber) > TOTAL_ROUNDS,
+  );
+}
+
+export function advanceContractRound(
+  player: PlayerState,
+  gameRoundNumber: number,
+): number {
+  const current = effectiveContractRound(player, gameRoundNumber);
+  if (gameRoundNumber === 0) {
+    return current;
+  }
+  return player.playerPhase === "opened" ? current + 1 : current;
+}
+
 export function matchesContract(
   submitted: Array<{ kind: MeldKind; cards: unknown[] }>,
   roundNumber: number,

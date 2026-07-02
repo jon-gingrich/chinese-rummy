@@ -41,7 +41,7 @@ export function ConfirmDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"
-        className="w-full max-w-md rounded-2xl border border-white/10 bg-[var(--card)] p-6 shadow-2xl"
+        className="w-full max-w-md rounded-2xl border-2 border-[var(--card-border)] bg-[var(--card)] p-6 shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
         <h2 id="confirm-dialog-title" className="text-lg font-semibold">
@@ -53,7 +53,7 @@ export function ConfirmDialog({
             type="button"
             disabled={busy}
             onClick={onCancel}
-            className="rounded-lg border border-white/10 px-4 py-2 text-sm disabled:opacity-50"
+            className="game-btn-secondary text-sm"
           >
             {cancelLabel}
           </button>
@@ -61,7 +61,7 @@ export function ConfirmDialog({
             type="button"
             disabled={busy}
             onClick={onConfirm}
-            className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-black disabled:opacity-50"
+            className="game-btn-primary text-sm"
           >
             {busy ? "Working…" : confirmLabel}
           </button>

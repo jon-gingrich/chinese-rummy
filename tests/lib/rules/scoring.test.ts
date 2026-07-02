@@ -231,6 +231,74 @@ describe("scoreRound", () => {
   });
 });
 
+describe("per-player contract progression", () => {
+  it("keeps the same contract for players who did not open when someone goes out", () => {
+    let state = gameWithDealtHands(2);
+    const goerId = state.players[0]!.id;
+    const openerId = state.players[1]!.id;
+
+    state = {
+      ...state,
+      turnPhase: "discard",
+      activeSeatIndex: state.players[0]!.seatIndex,
+      players: [
+        {
+          ...state.players[0]!,
+          contractRound: 1,
+          playerPhase: "opened",
+          hand: [makeCard("hearts", "9")],
+        },
+        {
+          ...state.players[1]!,
+          contractRound: 1,
+          playerPhase: "notOpened",
+          hand: [makeCard("clubs", "A"), makeCard("diamonds", "5")],
+        },
+      ],
+    };
+
+    const finished = applyAction(
+      state,
+      { kind: "discard", card: makeCard("hearts", "9") },
+      goerId,
+    );
+    expect(finished.state.phase).toBe("roundEnd");
+
+    const next = continueToNextRound(finished.state);
+    const goer = next.players.find((player) => player.id === goerId)!;
+    const holdover = next.players.find((player) => player.id === openerId)!;
+
+    expect(next.roundNumber).toBe(2);
+    expect(goer.contractRound).toBe(2);
+    expect(holdover.contractRound).toBe(1);
+  });
+
+  it("advances contract for every player who opened", () => {
+    let state = gameWithDealtHands(2);
+
+    state = {
+      ...state,
+      phase: "roundEnd",
+      roundPhase: "scored",
+      players: state.players.map((player) => ({
+        ...player,
+        contractRound: 3,
+        playerPhase: "opened" as const,
+      })),
+      lastRoundSummary: {
+        roundNumber: 1,
+        goerPlayerId: state.players[0]!.id,
+        roundScores: [0, 10],
+        cumulativeScores: [0, 10],
+      },
+    };
+
+    const next = continueToNextRound(state);
+
+    expect(next.players.every((player) => player.contractRound === 4)).toBe(true);
+  });
+});
+
 describe("ten-round game lifecycle", () => {
   it("rotates dealer clockwise between rounds", () => {
     let state = gameWithDealtHands(3);
@@ -265,6 +333,7 @@ describe("ten-round game lifecycle", () => {
     let state = gameWithDealtHands(2);
     const activeId = activePlayerId(state);
     const activeIndex = state.players.findIndex((p) => p.id === activeId);
+    const opponentIndex = activeIndex === 0 ? 1 : 0;
     const lastCard = makeCard("hearts", "9");
 
     state = {
@@ -274,8 +343,18 @@ describe("ten-round game lifecycle", () => {
       cumulativeScores: [50, 20],
       players: state.players.map((player, index) =>
         index === activeIndex
-          ? { ...player, hand: [lastCard] }
-          : { ...player, hand: [makeCard("clubs", "K")] },
+          ? {
+              ...player,
+              contractRound: 10,
+              playerPhase: "opened" as const,
+              hand: [lastCard],
+            }
+          : {
+              ...player,
+              contractRound: 11,
+              playerPhase: "opened" as const,
+              hand: [makeCard("clubs", "K")],
+            },
       ),
     };
 

@@ -13,7 +13,13 @@ export {
   TOTAL_ROUNDS,
 } from "./scoring";
 export { buildShoe } from "./cards";
-export { formatContract, getContractForRound } from "./contracts";
+export {
+  advanceContractRound,
+  effectiveContractRound,
+  formatContract,
+  getContractForRound,
+  projectedContractRound,
+} from "./contracts";
 export type {
   Action,
   ApplyActionResult,

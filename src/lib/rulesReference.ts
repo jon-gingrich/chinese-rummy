@@ -49,6 +49,8 @@ Wild relocation: when a natural card replaces a wild during lay-off, the displac
 
 Before you open, you cannot lay partial contracts across multiple turns.
 
+If someone goes out before you open, you keep the same contract requirement on the next hand. Players who opened advance to the next contract on the deal.
+
 After you open, you cannot create new melds for the rest of the round — only lay off on existing melds.
 
 Lay off adds a card to an existing meld after your opening turn. You may lay off on any player's melds on your next turn and every turn after (not the same turn you opened).

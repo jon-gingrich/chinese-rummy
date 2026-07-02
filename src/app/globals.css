@@ -1,15 +1,129 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0f1419;
-  --foreground: #e7ecf3;
-  --card: #1a222d;
-  --accent: #d4a017;
-  --muted: #8b98a8;
+  --background: #2c1810;
+  --foreground: #faf6f0;
+  --card: #4a3228;
+  --card-border: #6b4c3b;
+  --accent: #c9a227;
+  --accent-soft: #e8d48b;
+  --muted: #c4b5a5;
+  --felt: #3d6b4f;
+  --felt-dark: #2d5240;
+  --felt-light: #4a7d5e;
+  --wood: #5c3d2e;
+  --wood-dark: #3e291f;
+  --wood-light: #7a5540;
+  --cream: #faf6f0;
+  --danger: #e07a7a;
+  --success: #7bc67e;
+  --ui-scale: 1;
+}
+
+html {
+  font-size: calc(16px * var(--ui-scale));
 }
 
 body {
-  background: radial-gradient(circle at top, #1b2735 0%, var(--background) 55%);
+  background:
+    radial-gradient(ellipse 120% 80% at 50% -20%, #4a3228 0%, transparent 50%),
+    linear-gradient(180deg, #2c1810 0%, #1f120c 100%);
   color: var(--foreground);
   min-height: 100vh;
+}
+
+/* Family game UI primitives */
+.game-panel {
+  border-radius: 1rem;
+  border: 2px solid var(--card-border);
+  background: linear-gradient(145deg, var(--card) 0%, var(--wood-dark) 100%);
+  box-shadow:
+    0 4px 20px rgb(0 0 0 / 35%),
+    inset 0 1px 0 rgb(255 255 255 / 8%);
+}
+
+.game-btn-primary {
+  border-radius: 0.75rem;
+  background: linear-gradient(180deg, var(--accent-soft) 0%, var(--accent) 100%);
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #2c1810;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 25%);
+  transition: filter 0.15s, transform 0.15s;
+}
+
+.game-btn-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.game-btn-primary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.game-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.game-btn-secondary {
+  border-radius: 0.75rem;
+  border: 2px solid var(--card-border);
+  background: rgb(0 0 0 / 20%);
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--foreground);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.game-btn-secondary:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: rgb(0 0 0 / 30%);
+}
+
+.game-input {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 2px solid var(--card-border);
+  background: rgb(0 0 0 / 25%);
+  padding: 0.75rem 1rem;
+  color: var(--foreground);
+  outline: none;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+.game-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgb(201 162 39 / 25%);
+}
+
+.felt-surface {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 40%, var(--felt-light) 0%, var(--felt) 45%, var(--felt-dark) 100%);
+  box-shadow:
+    inset 0 0 80px rgb(0 0 0 / 35%),
+    inset 0 2px 4px rgb(255 255 255 / 6%);
+}
+
+.wood-rail {
+  background: linear-gradient(180deg, var(--wood-light) 0%, var(--wood) 40%, var(--wood-dark) 100%);
+  box-shadow:
+    0 8px 32px rgb(0 0 0 / 45%),
+    inset 0 2px 0 rgb(255 255 255 / 12%),
+    inset 0 -2px 4px rgb(0 0 0 / 30%);
+}
+
+@keyframes turn-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(201 162 39 / 50%);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgb(201 162 39 / 0%);
+  }
+}
+
+.turn-pulse {
+  animation: turn-pulse 2s ease-in-out infinite;
 }

@@ -155,8 +155,15 @@ export async function mergeGuestUserData(
     throw new Error("Sign in with a full account before linking");
   }
 
+  const guestPreferencePatch: Partial<Doc<"users">> = {};
   if (guest.displayName && (!target.displayName || target.displayName === "Guest")) {
-    await ctx.db.patch("users", args.targetUserId, { displayName: guest.displayName });
+    guestPreferencePatch.displayName = guest.displayName;
+  }
+  if (guest.preferences && !target.preferences) {
+    guestPreferencePatch.preferences = guest.preferences;
+  }
+  if (Object.keys(guestPreferencePatch).length > 0) {
+    await ctx.db.patch("users", args.targetUserId, guestPreferencePatch);
   }
 
   const rooms = await ctx.db.query("rooms").collect();

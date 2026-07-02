@@ -1,0 +1,66 @@
+"use client";
+
+import type { ReactNode } from "react";
+import type { Card, NaturalRank } from "../../../convex/lib/rules/types";
+import { formatCardLabel } from "../../lib/cards";
+
+type ActionDockProps = {
+  title: string;
+  children?: ReactNode;
+  actions?: ReactNode;
+};
+
+export function ActionDock({ title, children, actions }: ActionDockProps) {
+  if (!children && !actions) {
+    return null;
+  }
+
+  return (
+    <aside className="wood-rail absolute bottom-36 right-4 z-30 w-72 rounded-xl border-2 border-[var(--wood-light)] p-4 shadow-2xl">
+      <h3 className="text-sm font-bold text-[var(--accent-soft)]">{title}</h3>
+      {children ? <div className="mt-3 space-y-3">{children}</div> : null}
+      {actions ? <div className="mt-4 flex flex-wrap gap-2">{actions}</div> : null}
+    </aside>
+  );
+}
+
+type WildRankPickerProps = {
+  cards: Card[];
+  wildRanks: Record<string, NaturalRank>;
+  naturalRanks: NaturalRank[];
+  isJoker: (card: Card) => boolean;
+  onChange: (cardId: string, rank: NaturalRank) => void;
+};
+
+export function WildRankPicker({
+  cards,
+  wildRanks,
+  naturalRanks,
+  isJoker,
+  onChange,
+}: WildRankPickerProps) {
+  return (
+    <div className="space-y-2">
+      {cards.map((card) => (
+        <label key={card.id} className="flex items-center gap-2 text-xs">
+          <span className="min-w-14 font-semibold text-[var(--cream)]">{formatCardLabel(card)}</span>
+          <select
+            value={wildRanks[card.id] ?? (card.rank === "2" ? "2" : "")}
+            onChange={(event) => onChange(card.id, event.target.value as NaturalRank)}
+            className="game-input flex-1 py-1.5 text-xs"
+          >
+            {isJoker(card) ? <option value="">Rank…</option> : null}
+            {card.rank === "2" ? <option value="2">Natural 2</option> : null}
+            {naturalRanks
+              .filter((rank) => rank !== "2" || card.rank === "2")
+              .map((rank) => (
+                <option key={rank} value={rank}>
+                  {rank}
+                </option>
+              ))}
+          </select>
+        </label>
+      ))}
+    </div>
+  );
+}

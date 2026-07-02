@@ -90,19 +90,19 @@ export function fanRotation(index: number, total: number): number {
   return start + index * step;
 }
 
-export function fanCardStep(total: number): number {
+export function fanCardStep(total: number, cardWidth = 94): number {
   if (total <= 8) {
-    return 42;
+    return Math.round(cardWidth * 0.58);
   }
   if (total <= 11) {
-    return 36;
+    return Math.round(cardWidth * 0.5);
   }
-  return 32;
+  return Math.round(cardWidth * 0.45);
 }
 
-export function fanContainerHeight(total: number): number {
+export function fanContainerHeight(total: number, cardHeight = 130): number {
   const spread = total <= 1 ? 0 : Math.min(total * 5, total > 10 ? 34 : 44);
-  return 112 + spread;
+  return cardHeight + spread;
 }
 
 export function fanTranslateY(index: number, total: number): number {

@@ -1,16 +1,17 @@
 "use client";
 
 import type { Card } from "../../convex/lib/rules/types";
+import { scaledCardDimensions } from "../lib/cardDisplay";
+import { useCardScale } from "../contexts/PlayerPreferencesContext";
 import {
   fanCardStep,
   fanContainerHeight,
   fanRotation,
   fanTranslateY,
-  formatCardLabel,
   sortHand,
-  suitColorClass,
   type HandSortMode,
 } from "../lib/cards";
+import { PlayingCard } from "./cards/PlayingCard";
 
 type CardFanProps = {
   cards: Card[];
@@ -21,6 +22,7 @@ type CardFanProps = {
   sortMode: HandSortMode;
   onSortModeChange: (mode: HandSortMode) => void;
   showSortControls?: boolean;
+  size?: "md" | "lg";
 };
 
 export function CardFan({
@@ -32,25 +34,33 @@ export function CardFan({
   sortMode,
   onSortModeChange,
   showSortControls = true,
+  size = "lg",
 }: CardFanProps) {
+  const cardScale = useCardScale();
   const sortedCards = sortHand(cards, sortMode);
   const selectedSet = new Set(selectedIds ?? (selectedId ? [selectedId] : []));
-  const cardStep = fanCardStep(sortedCards.length);
-  const containerHeight = fanContainerHeight(sortedCards.length);
-  const fanWidth = Math.max(sortedCards.length * cardStep + 64, 280);
+  const { width: cardWidth, height: cardHeight } = scaledCardDimensions(size, cardScale);
+  const cardStep = fanCardStep(sortedCards.length, cardWidth);
+  const maxRotation =
+    sortedCards.length <= 1
+      ? 0
+      : Math.min(sortedCards.length * 5, sortedCards.length > 10 ? 34 : 44) / 2;
+  const bottomBuffer = Math.ceil(maxRotation * 0.35 + maxRotation * 0.5 + 6);
+  const containerHeight = fanContainerHeight(sortedCards.length, cardHeight) + bottomBuffer;
+  const fanWidth = Math.max(sortedCards.length * cardStep + cardWidth, Math.round(cardWidth * 4.5));
 
   return (
-    <div className="space-y-4">
+    <div className={showSortControls ? "space-y-1" : ""}>
       {showSortControls ? (
-        <div className="flex flex-wrap gap-2 text-sm">
-          <span className="self-center text-[var(--muted)]">Sort by</span>
+        <div className="flex flex-wrap gap-1.5 text-xs">
+          <span className="self-center text-[var(--muted)]">Sort</span>
           <button
             type="button"
             onClick={() => onSortModeChange("suit")}
-            className={`rounded-full px-3 py-1 ${
+            className={`rounded-full px-2.5 py-0.5 font-semibold ${
               sortMode === "suit"
-                ? "bg-[var(--accent)] text-black"
-                : "border border-white/10"
+                ? "bg-[var(--accent)] text-[#2c1810]"
+                : "border border-[var(--card-border)] text-[var(--muted)]"
             }`}
           >
             Suit
@@ -58,10 +68,10 @@ export function CardFan({
           <button
             type="button"
             onClick={() => onSortModeChange("rank")}
-            className={`rounded-full px-3 py-1 ${
+            className={`rounded-full px-2.5 py-0.5 font-semibold ${
               sortMode === "rank"
-                ? "bg-[var(--accent)] text-black"
-                : "border border-white/10"
+                ? "bg-[var(--accent)] text-[#2c1810]"
+                : "border border-[var(--card-border)] text-[var(--muted)]"
             }`}
           >
             Rank
@@ -69,14 +79,13 @@ export function CardFan({
         </div>
       ) : null}
 
-      <div className="-mx-2 overflow-x-auto px-2 pb-3 pt-6 [scrollbar-width:thin]">
+      <div className="overflow-x-auto overflow-y-visible pb-2 pt-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div
-          className="relative mx-auto flex items-end justify-center"
+          className="relative mx-auto flex items-end justify-center overflow-visible"
           style={{
             width: `${fanWidth}px`,
             minHeight: `${containerHeight}px`,
-            paddingLeft: "20px",
-            paddingRight: "20px",
+            paddingBottom: `${bottomBuffer}px`,
           }}
         >
           {sortedCards.map((card, index) => {
@@ -85,28 +94,21 @@ export function CardFan({
             const translateY = fanTranslateY(index, sortedCards.length);
 
             return (
-              <button
+              <PlayingCard
                 key={card.id}
-                type="button"
+                card={card}
+                size={size}
+                selected={selected}
                 disabled={disabled}
                 onClick={() => onToggle(card.id)}
-                aria-pressed={selected}
-                className={`relative h-28 w-16 shrink-0 rounded-xl border px-1 py-2 text-sm font-semibold shadow-lg transition ${
-                  index === 0 ? "ml-0" : ""
-                } ${
-                  selected
-                    ? "border-[var(--accent)] bg-[var(--accent)]/25 ring-2 ring-[var(--accent)]/40"
-                    : "border-white/15 bg-[#f8f4ea] text-slate-900"
-                } ${suitColorClass(card.suit)} disabled:cursor-default disabled:opacity-60`}
+                className="relative"
                 style={{
-                  marginLeft: index === 0 ? 0 : `${cardStep - 64}px`,
+                  marginLeft: index === 0 ? 0 : `${cardStep - cardWidth}px`,
                   transform: `rotate(${rotation}deg) translateY(${translateY}px)`,
                   transformOrigin: "bottom center",
                   zIndex: selected ? sortedCards.length + 1 : index + 1,
                 }}
-              >
-                <span className="block leading-tight">{formatCardLabel(card)}</span>
-              </button>
+              />
             );
           })}
         </div>

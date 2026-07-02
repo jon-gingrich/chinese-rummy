@@ -49,5 +49,5 @@ export function lowestScoreWinnerIds(
 }
 
 export function gameComplete(state: GameState): boolean {
-  return state.roundNumber >= TOTAL_ROUNDS && state.roundPhase === "scored";
+  return state.phase === "gameEnd";
 }

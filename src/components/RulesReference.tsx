@@ -36,7 +36,7 @@ export function RulesReference({ open, onClose }: RulesReferenceProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="rules-reference-title"
-        className="h-full w-full max-w-md overflow-y-auto border-l border-white/10 bg-[var(--card)] p-6 shadow-2xl"
+        className="h-full w-full max-w-md overflow-y-auto border-l-2 border-[var(--card-border)] bg-[var(--card)] p-6 shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-6 flex items-start justify-between gap-4">

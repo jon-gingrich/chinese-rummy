@@ -1,7 +1,7 @@
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { playerDisplayName } from "./auth";
-import { formatContract } from "./rules/contracts";
+import { effectiveContractRound, formatContract } from "./rules/contracts";
 import type { GameState } from "./rules";
 import type { Card } from "./rules/types";
 
@@ -91,6 +91,7 @@ export async function buildTableView(
   ctx: QueryCtx | MutationCtx,
   game: Doc<"games">,
   state: GameState,
+  viewerUserId?: string,
 ) {
   const players = await Promise.all(
     state.players.map(async (player, index) => {
@@ -103,6 +104,8 @@ export async function buildTableView(
         seatIndex: player.seatIndex,
         displayName: playerDisplayName(user),
         handSize: player.hand.length,
+        contractRound: effectiveContractRound(player, state.roundNumber),
+        contract: formatContract(effectiveContractRound(player, state.roundNumber)),
         playerPhase: player.playerPhase,
         isActive: player.seatIndex === state.activeSeatIndex,
         isDealer: player.seatIndex === state.dealerSeatIndex,
@@ -112,11 +115,18 @@ export async function buildTableView(
     }),
   );
 
+  const viewerPlayer = viewerUserId
+    ? state.players.find((player) => player.id === viewerUserId)
+    : undefined;
+  const contractRound = viewerPlayer
+    ? effectiveContractRound(viewerPlayer, state.roundNumber)
+    : state.roundNumber;
+
   return {
     _id: game._id,
     roomId: game.roomId,
     roundNumber: state.roundNumber,
-    contract: formatContract(state.roundNumber),
+    contract: formatContract(contractRound),
     phase: state.phase,
     turnPhase: state.turnPhase,
     activeSeatIndex: state.activeSeatIndex,

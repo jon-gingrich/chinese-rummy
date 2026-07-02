@@ -43,3 +43,31 @@ describe("users.updateDisplayName", () => {
     expect(viewer).toBeNull();
   });
 });
+
+describe("users.updatePreferences", () => {
+  it("merges partial preference updates for the signed-in player", async () => {
+    const t = createTestContext();
+    const asUser = await withSeededPlayer(t, {
+      name: "Pat",
+      email: "pat@example.com",
+    });
+
+    const updated = await asUser.mutation(api.users.updatePreferences, {
+      preferences: {
+        confirmBeforeDiscard: false,
+        cardScale: "large",
+      },
+    });
+
+    expect(updated.preferences).toMatchObject({
+      confirmBeforeDiscard: false,
+      confirmBeforeOpening: true,
+      cardScale: "large",
+      uiScale: "medium",
+    });
+
+    const viewer = await asUser.query(api.users.viewer, {});
+    expect(viewer?.preferences.confirmBeforeDiscard).toBe(false);
+    expect(viewer?.preferences.cardScale).toBe("large");
+  });
+});

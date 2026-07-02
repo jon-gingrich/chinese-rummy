@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { api } from "../../../convex/_generated/api";
+import { AppShell } from "@/components/AppShell";
 import { LinkAccountPrompt } from "../../components/LinkAccountPrompt";
 import { useGuestAuth } from "../../hooks/useGuestAuth";
 
@@ -17,9 +18,7 @@ function MyGamesList() {
   }
 
   if (myGames.length === 0) {
-    return (
-      <p className="mt-4 text-sm text-[var(--muted)]">No games in progress.</p>
-    );
+    return <p className="mt-4 text-sm text-[var(--muted)]">No games in progress.</p>;
   }
 
   return (
@@ -27,10 +26,10 @@ function MyGamesList() {
       {myGames.map((game) => (
         <li
           key={game.gameId}
-          className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-black/20 px-4 py-3"
+          className="flex items-center justify-between gap-4 rounded-xl bg-black/20 px-4 py-3"
         >
           <div className="min-w-0">
-            <p className="font-medium tracking-wide">{game.roomCode}</p>
+            <p className="font-bold tracking-wide text-[var(--cream)]">{game.roomCode}</p>
             <p className="text-sm text-[var(--muted)]">
               Round {game.roundNumber} · {game.contract}
             </p>
@@ -42,7 +41,7 @@ function MyGamesList() {
           <button
             type="button"
             onClick={() => router.push(`/room/${game.roomId}`)}
-            className="shrink-0 rounded-lg bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-black"
+            className="game-btn-primary shrink-0 px-3 py-2 text-xs"
           >
             Resume
           </button>
@@ -76,17 +75,14 @@ function RoomActions() {
         type="button"
         onClick={() => void handleCreateRoom()}
         disabled={creating}
-        className="rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-black disabled:opacity-60"
+        className="game-btn-primary"
       >
         {creating ? "Creating…" : "Create room"}
       </button>
-      <Link
-        href="/join"
-        className="rounded-xl border border-white/10 px-4 py-3 text-sm font-medium hover:border-white/20"
-      >
+      <Link href="/join" className="game-btn-secondary">
         Join with code
       </Link>
-      {error ? <p className="w-full text-sm text-red-300">{error}</p> : null}
+      {error ? <p className="w-full text-sm text-[var(--danger)]">{error}</p> : null}
     </div>
   );
 }
@@ -128,20 +124,20 @@ export default function HomePage() {
 
   if (isLoading || !viewer) {
     return (
-      <main className="mx-auto flex min-h-screen max-w-lg items-center justify-center px-6">
-        <p className="text-[var(--muted)]">Loading your profile…</p>
-      </main>
+      <AppShell>
+        <p className="text-center text-[var(--muted)]">Loading your profile…</p>
+      </AppShell>
     );
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-lg flex-col gap-8 px-6 py-12">
-      <header className="flex items-start justify-between gap-4">
+    <AppShell wide>
+      <header className="mb-8 flex items-start justify-between gap-4">
         <div className="space-y-1">
-          <p className="text-sm uppercase tracking-[0.25em] text-[var(--accent)]">
-            {isGuest ? "Guest table" : "Welcome"}
+          <p className="text-sm font-bold uppercase tracking-[0.25em] text-[var(--accent-soft)]">
+            {isGuest ? "Guest table" : "Welcome back"}
           </p>
-          <h1 className="text-3xl font-semibold">{viewer.displayName}</h1>
+          <h1 className="text-3xl font-extrabold text-[var(--cream)]">{viewer.displayName}</h1>
           {viewer.email ? (
             <p className="text-sm text-[var(--muted)]">{viewer.email}</p>
           ) : isGuest ? (
@@ -149,13 +145,19 @@ export default function HomePage() {
           ) : null}
         </div>
         {!isGuest ? (
-          <Link
-            href="/sign-in"
-            className="rounded-lg border border-white/10 px-3 py-2 text-sm text-[var(--muted)] hover:text-white"
-          >
-            Account
+          <div className="flex flex-wrap gap-2">
+            <Link href="/home/settings" className="game-btn-secondary text-sm">
+              Settings
+            </Link>
+            <Link href="/sign-in" className="game-btn-secondary text-sm">
+              Account
+            </Link>
+          </div>
+        ) : (
+          <Link href="/home/settings" className="game-btn-secondary text-sm">
+            Settings
           </Link>
-        ) : null}
+        )}
       </header>
 
       {isGuest ? (
@@ -165,54 +167,48 @@ export default function HomePage() {
         />
       ) : null}
 
-      <section className="rounded-2xl border border-white/10 bg-[var(--card)] p-6">
-        <h2 className="text-lg font-medium">Display name</h2>
-        <p className="mt-1 text-sm text-[var(--muted)]">
-          Other players will see this at the table.
-        </p>
-        <form onSubmit={(event) => void handleSave(event)} className="mt-4 space-y-3">
-          <input
-            value={displayName}
-            onChange={(event) => setDisplayName(event.target.value)}
-            minLength={2}
-            maxLength={40}
-            required
-            className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 outline-none ring-[var(--accent)] focus:ring-2"
-          />
-          <button
-            type="submit"
-            disabled={saving}
-            className="rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-black disabled:opacity-60"
-          >
-            {saving ? "Saving…" : "Save display name"}
-          </button>
-        </form>
-        {status ? <p className="mt-3 text-sm text-[var(--muted)]">{status}</p> : null}
-      </section>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className="game-panel p-6">
+          <h2 className="text-lg font-bold text-[var(--accent-soft)]">Display name</h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">Other players will see this at the table.</p>
+          <form onSubmit={(event) => void handleSave(event)} className="mt-4 space-y-3">
+            <input
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+              minLength={2}
+              maxLength={40}
+              required
+              className="game-input"
+            />
+            <button type="submit" disabled={saving} className="game-btn-primary">
+              {saving ? "Saving…" : "Save display name"}
+            </button>
+          </form>
+          {status ? <p className="mt-3 text-sm text-[var(--muted)]">{status}</p> : null}
+        </section>
 
-      <section className="rounded-2xl border border-white/10 bg-[var(--card)] p-6">
-        <h2 className="text-lg font-medium">My games</h2>
-        <p className="mt-1 text-sm text-[var(--muted)]">
-          {isGuest
-            ? "Sign in to keep a list of games you can resume later."
-            : "Resume a game you left — your seat, hand, and scores are saved."}
-        </p>
-        {isGuest ? (
-          <p className="mt-4 text-sm text-[var(--muted)]">
-            Guest sessions work in this browser only.
+        <section className="game-panel p-6">
+          <h2 className="text-lg font-bold text-[var(--accent-soft)]">Rooms</h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            Create a table for your family or join with a room code.
           </p>
-        ) : (
-          <MyGamesList />
-        )}
-      </section>
+          <RoomActions />
+        </section>
 
-      <section className="rounded-2xl border border-white/10 bg-[var(--card)] p-6">
-        <h2 className="text-lg font-medium">Rooms</h2>
-        <p className="mt-1 text-sm text-[var(--muted)]">
-          Create a table for your family or join with a room code.
-        </p>
-        <RoomActions />
-      </section>
-    </main>
+        <section className="game-panel p-6 lg:col-span-2">
+          <h2 className="text-lg font-bold text-[var(--accent-soft)]">My games</h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            {isGuest
+              ? "Sign in to keep a list of games you can resume later."
+              : "Resume a game you left — your seat, hand, and scores are saved."}
+          </p>
+          {isGuest ? (
+            <p className="mt-4 text-sm text-[var(--muted)]">Guest sessions work in this browser only.</p>
+          ) : (
+            <MyGamesList />
+          )}
+        </section>
+      </div>
+    </AppShell>
   );
 }

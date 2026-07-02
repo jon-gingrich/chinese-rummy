@@ -1,10 +1,10 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { api } from "../../../convex/_generated/api";
+import { AppShell } from "@/components/AppShell";
 import { useGuestAuth } from "../../hooks/useGuestAuth";
 
 export default function JoinRoomPage() {
@@ -54,27 +54,21 @@ export default function JoinRoomPage() {
 
   if (isLoading || viewer === null) {
     return (
-      <main className="mx-auto flex min-h-screen max-w-lg items-center justify-center px-6">
-        <p className="text-[var(--muted)]">Loading…</p>
-      </main>
+      <AppShell>
+        <p className="text-center text-[var(--muted)]">Loading…</p>
+      </AppShell>
     );
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-lg flex-col gap-8 px-6 py-12">
-      <header className="space-y-2">
-        <Link href="/home" className="text-sm text-[var(--muted)] hover:text-white">
-          ← Back to home
-        </Link>
-        <h1 className="text-3xl font-semibold">Join a room</h1>
-        <p className="text-sm text-[var(--muted)]">
-          Enter the six-character room code from your host.
-        </p>
-      </header>
-
-      <form onSubmit={(event) => void handleJoin(event)} className="space-y-4">
+    <AppShell
+      backHref="/home"
+      title="Join a room"
+      subtitle="Enter the six-character room code from your host."
+    >
+      <form onSubmit={(event) => void handleJoin(event)} className="game-panel mx-auto max-w-md space-y-4 p-6">
         <label className="block space-y-2 text-sm">
-          <span className="text-[var(--muted)]">Room code</span>
+          <span className="font-semibold text-[var(--muted)]">Room code</span>
           <input
             value={code}
             onChange={(event) => setCode(event.target.value.toUpperCase())}
@@ -82,7 +76,7 @@ export default function JoinRoomPage() {
             maxLength={6}
             required
             placeholder="ABC123"
-            className="w-full rounded-xl border border-white/10 bg-[var(--card)] px-4 py-3 font-mono tracking-[0.35em] uppercase outline-none ring-[var(--accent)] focus:ring-2"
+            className="game-input font-mono tracking-[0.35em] uppercase"
           />
         </label>
 
@@ -91,28 +85,21 @@ export default function JoinRoomPage() {
         ) : null}
 
         {normalizedCode.length === 6 && roomPreview === null ? (
-          <p className="text-sm text-red-300">No room found for that code.</p>
+          <p className="text-sm text-[var(--danger)]">No room found for that code.</p>
         ) : null}
 
         {roomPreview ? (
-          <div className="rounded-xl border border-white/10 bg-[var(--card)] px-4 py-3 text-sm">
-            <p>
-              Room found — {roomPreview.seats.filter((seat) => seat !== null).length} of 5
-              seats taken.
-            </p>
+          <div className="rounded-lg bg-black/20 px-4 py-3 text-sm">
+            Room found — {roomPreview.seats.filter((seat) => seat !== null).length} of 5 seats taken.
           </div>
         ) : null}
 
-        <button
-          type="submit"
-          disabled={loading || !roomPreview}
-          className="w-full rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-black disabled:opacity-60"
-        >
+        <button type="submit" disabled={loading || !roomPreview} className="game-btn-primary w-full">
           {loading ? "Opening…" : "Continue to seats"}
         </button>
-      </form>
 
-      {status ? <p className="text-sm text-[var(--muted)]">{status}</p> : null}
-    </main>
+        {status ? <p className="text-sm text-[var(--muted)]">{status}</p> : null}
+      </form>
+    </AppShell>
   );
 }

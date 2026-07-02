@@ -6,8 +6,10 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { AppShell } from "@/components/AppShell";
 import { GameTable } from "../../../components/GameTable";
 import { LinkAccountPrompt } from "../../../components/LinkAccountPrompt";
+import { ScreenSizeGate } from "../../../components/ScreenSizeGate";
 import { useGuestAuth } from "../../../hooks/useGuestAuth";
 
 export default function RoomLobbyPage() {
@@ -30,9 +32,7 @@ export default function RoomLobbyPage() {
   }, [ensureCurrentUser, viewer]);
 
   const mySeatIndex =
-    viewer && room
-      ? room.seats.findIndex((seat) => seat?.userId === viewer.userId)
-      : -1;
+    viewer && room ? room.seats.findIndex((seat) => seat?.userId === viewer.userId) : -1;
   const isHost = viewer && room ? room.hostId === viewer.userId : false;
   const seatedCount = room?.seats.filter((seat) => seat !== null).length ?? 0;
   const allReady =
@@ -44,6 +44,7 @@ export default function RoomLobbyPage() {
     typeof window !== "undefined" && room
       ? `${window.location.origin}/join?code=${room.code}`
       : "";
+  const isPlaying = room?.status === "playing";
 
   async function handleJoinSeat(seatIndex: number) {
     if (!room) {
@@ -98,43 +99,60 @@ export default function RoomLobbyPage() {
 
   if (room === undefined || isLoading || viewer === null) {
     return (
-      <main className="mx-auto flex min-h-screen max-w-2xl items-center justify-center px-6">
-        <p className="text-[var(--muted)]">Loading room…</p>
-      </main>
+      <AppShell>
+        <p className="text-center text-[var(--muted)]">Loading room…</p>
+      </AppShell>
     );
   }
 
   if (room === null) {
     return (
-      <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-4 px-6">
-        <p className="text-[var(--muted)]">Room not found.</p>
-        <Link href="/home" className="text-sm text-[var(--accent)] hover:underline">
+      <AppShell backHref="/home" title="Room not found">
+        <Link href="/home" className="game-btn-primary inline-block">
           Back to home
         </Link>
-      </main>
+      </AppShell>
+    );
+  }
+
+  if (isPlaying) {
+    return (
+      <ScreenSizeGate>
+        <div className="flex h-screen flex-col p-1 md:p-2">
+          <div className="mb-1 flex shrink-0 items-center justify-between px-1">
+            <Link href="/home" className="text-sm font-semibold text-[var(--muted)] hover:text-[var(--cream)]">
+              ← Home
+            </Link>
+            <p className="font-mono text-sm font-bold tracking-[0.2em] text-[var(--accent-soft)]">
+              {room.code}
+            </p>
+            {isGuest && viewer ? <LinkAccountPrompt userId={viewer.userId} compact /> : null}
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <GameTable roomId={roomId} />
+          </div>
+        </div>
+      </ScreenSizeGate>
     );
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-8 px-6 py-12">
-      <header className="flex flex-wrap items-start justify-between gap-4">
+    <AppShell backHref="/home" wide>
+      <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-1">
-          <Link href="/home" className="text-sm text-[var(--muted)] hover:text-white">
-            ← Home
-          </Link>
-          <p className="text-sm uppercase tracking-[0.25em] text-[var(--accent)]">
-            {room.status === "lobby" ? "Room lobby" : "Game table"}
+          <p className="text-sm font-bold uppercase tracking-[0.25em] text-[var(--accent-soft)]">
+            Room lobby
           </p>
-          <h1 className="font-mono text-4xl font-semibold tracking-[0.2em]">{room.code}</h1>
+          <h1 className="font-mono text-4xl font-extrabold tracking-[0.2em] text-[var(--cream)]">
+            {room.code}
+          </h1>
           <p className="text-sm text-[var(--muted)]">
-            {room.status === "lobby"
-              ? "Choose a seat, mark ready, and wait for the host to start."
-              : "The game is in progress."}
+            Choose a seat, mark ready, and wait for the host to start.
           </p>
         </div>
-        <div className="rounded-xl border border-white/10 bg-[var(--card)] px-4 py-3 text-sm">
-          <p className="text-[var(--muted)]">Seated</p>
-          <p className="text-2xl font-semibold">{seatedCount} / 5</p>
+        <div className="game-panel px-4 py-3 text-center">
+          <p className="text-xs font-semibold text-[var(--muted)]">Seated</p>
+          <p className="text-2xl font-extrabold text-[var(--accent-soft)]">{seatedCount} / 5</p>
         </div>
       </header>
 
@@ -142,25 +160,17 @@ export default function RoomLobbyPage() {
         <LinkAccountPrompt userId={viewer.userId} />
       ) : null}
 
-      {room.status === "playing" ? <GameTable roomId={roomId} /> : null}
-
-      {room.status === "lobby" ? (
-        <>
-      <section className="rounded-2xl border border-white/10 bg-[var(--card)] p-6">
+      <section className="game-panel mb-6 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-medium">Invite link</h2>
-          <button
-            type="button"
-            onClick={() => void handleCopyLink()}
-            className="rounded-lg border border-white/10 px-3 py-2 text-sm hover:border-white/20"
-          >
+          <h2 className="font-bold text-[var(--accent-soft)]">Invite link</h2>
+          <button type="button" onClick={() => void handleCopyLink()} className="game-btn-secondary text-sm">
             Copy link
           </button>
         </div>
         <p className="mt-2 break-all text-sm text-[var(--muted)]">{shareUrl || "…"}</p>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {room.seats.map((seat, index) => {
           const isMine = index === mySeatIndex;
           const isOpen = seat === null;
@@ -169,23 +179,21 @@ export default function RoomLobbyPage() {
           return (
             <div
               key={index}
-              className={`rounded-2xl border p-4 ${
-                isMine ? "border-[var(--accent)] bg-[var(--accent)]/10" : "border-white/10 bg-black/20"
-              }`}
+              className={`game-panel p-4 ${isMine ? "ring-2 ring-[var(--accent)]" : ""}`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm text-[var(--muted)]">Seat {index + 1}</p>
-                  <p className="text-lg font-medium">
+                  <p className="text-sm font-semibold text-[var(--muted)]">Seat {index + 1}</p>
+                  <p className="text-lg font-bold text-[var(--cream)]">
                     {seat ? seat.displayName : "Open"}
                   </p>
                 </div>
                 {seat ? (
                   <span
-                    className={`rounded-full px-3 py-1 text-xs font-medium ${
+                    className={`rounded-full px-3 py-1 text-xs font-bold ${
                       seat.ready
-                        ? "bg-emerald-500/20 text-emerald-200"
-                        : "bg-white/10 text-[var(--muted)]"
+                        ? "bg-[var(--success)]/25 text-[var(--success)]"
+                        : "bg-black/25 text-[var(--muted)]"
                     }`}
                   >
                     {seat.ready ? "Ready" : "Not ready"}
@@ -198,7 +206,7 @@ export default function RoomLobbyPage() {
                   type="button"
                   disabled={busySeat === index}
                   onClick={() => void handleJoinSeat(index)}
-                  className="mt-4 w-full rounded-xl border border-white/10 px-4 py-2 text-sm hover:border-white/20 disabled:opacity-60"
+                  className="game-btn-secondary mt-4 w-full text-sm"
                 >
                   {busySeat === index ? "Joining…" : "Take this seat"}
                 </button>
@@ -209,12 +217,8 @@ export default function RoomLobbyPage() {
       </section>
 
       {mySeatIndex >= 0 && room.status === "lobby" ? (
-        <section className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={() => void handleReadyToggle()}
-            className="rounded-xl bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-black"
-          >
+        <section className="mt-6 flex flex-wrap gap-3">
+          <button type="button" onClick={() => void handleReadyToggle()} className="game-btn-primary">
             {room.seats[mySeatIndex]?.ready ? "Mark not ready" : "Mark ready"}
           </button>
 
@@ -223,7 +227,7 @@ export default function RoomLobbyPage() {
               type="button"
               disabled={!canStart || starting}
               onClick={() => void handleStartGame()}
-              className="rounded-xl border border-white/10 px-5 py-3 text-sm font-medium disabled:opacity-50"
+              className="game-btn-secondary"
             >
               {starting ? "Starting…" : "Start game"}
             </button>
@@ -232,20 +236,18 @@ export default function RoomLobbyPage() {
       ) : null}
 
       {isHost && room.status === "lobby" && seatedCount < 2 ? (
-        <p className="text-sm text-[var(--muted)]">
+        <p className="mt-4 text-sm text-[var(--muted)]">
           Waiting for at least one more player before you can start.
         </p>
       ) : null}
 
       {isHost && room.status === "lobby" && seatedCount >= 2 && !allReady ? (
-        <p className="text-sm text-[var(--muted)]">
+        <p className="mt-4 text-sm text-[var(--muted)]">
           Waiting for every seated player to mark ready.
         </p>
       ) : null}
 
-      {status ? <p className="text-sm text-[var(--muted)]">{status}</p> : null}
-        </>
-      ) : null}
-    </main>
+      {status ? <p className="mt-4 text-sm text-[var(--muted)]">{status}</p> : null}
+    </AppShell>
   );
 }

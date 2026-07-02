@@ -9,12 +9,14 @@ type LinkAccountPromptProps = {
   userId: string;
   title?: string;
   description?: string;
+  compact?: boolean;
 };
 
 export function LinkAccountPrompt({
   userId,
   title = "Save your seat across devices",
   description = "Create or link an account to resume games later on another device.",
+  compact = false,
 }: LinkAccountPromptProps) {
   const pathname = usePathname();
   const { signIn } = useAuthActions();
@@ -25,22 +27,30 @@ export function LinkAccountPrompt({
     void signIn("google", { redirectTo: pathname || "/home" });
   }
 
+  if (compact) {
+    return (
+      <Link
+        href={`/sign-in?returnTo=${returnTo}`}
+        onClick={() => rememberGuestUserId(userId)}
+        className="game-btn-secondary px-2 py-1 text-xs"
+      >
+        Link account
+      </Link>
+    );
+  }
+
   return (
-    <section className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-6">
-      <h2 className="text-lg font-medium text-amber-100">{title}</h2>
+    <section className="game-panel border-amber-500/40 p-6">
+      <h2 className="text-lg font-bold text-[var(--accent-soft)]">{title}</h2>
       <p className="mt-1 text-sm text-[var(--muted)]">{description}</p>
       <div className="mt-4 flex flex-wrap gap-3">
-        <button
-          type="button"
-          onClick={() => void handleGoogleSignIn()}
-          className="rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-black"
-        >
+        <button type="button" onClick={() => void handleGoogleSignIn()} className="game-btn-primary">
           Continue with Google
         </button>
         <Link
           href={`/sign-in?returnTo=${returnTo}`}
           onClick={() => rememberGuestUserId(userId)}
-          className="rounded-xl border border-white/10 px-4 py-3 text-sm font-medium hover:border-white/20"
+          className="game-btn-secondary"
         >
           Email magic link
         </Link>
