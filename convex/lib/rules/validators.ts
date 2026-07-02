@@ -93,6 +93,13 @@ export const playerStateValidator = v.object({
   hand: v.array(cardValidator),
 });
 
+export const roundSummaryValidator = v.object({
+  roundNumber: v.number(),
+  goerPlayerId: v.string(),
+  roundScores: v.array(v.number()),
+  cumulativeScores: v.array(v.number()),
+});
+
 export const gameStateValidator = v.object({
   phase: v.union(v.literal("playing"), v.literal("roundEnd"), v.literal("gameEnd")),
   roundNumber: v.number(),
@@ -105,6 +112,8 @@ export const gameStateValidator = v.object({
   discard: v.array(cardValidator),
   melds: v.array(tableMeldValidator),
   cumulativeScores: v.array(v.number()),
+  lastRoundSummary: v.optional(roundSummaryValidator),
+  winnerPlayerIds: v.optional(v.array(v.string())),
 });
 
 export const legalActionsValidator = v.object({
@@ -125,6 +134,8 @@ export const tablePlayerValidator = v.object({
   playerPhase: v.union(v.literal("notOpened"), v.literal("opened")),
   isActive: v.boolean(),
   isDealer: v.boolean(),
+  cumulativeScore: v.number(),
+  roundScore: v.optional(v.number()),
 });
 
 export const tableViewValidator = v.object({
@@ -141,6 +152,9 @@ export const tableViewValidator = v.object({
   players: v.array(tablePlayerValidator),
   melds: v.array(tableMeldValidator),
   cumulativeScores: v.array(v.number()),
+  lastRoundSummary: v.optional(roundSummaryValidator),
+  winnerPlayerIds: v.optional(v.array(v.string())),
+  canContinueRound: v.boolean(),
 });
 
 export const actionResultValidator = v.object({

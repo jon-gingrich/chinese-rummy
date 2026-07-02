@@ -1,6 +1,12 @@
 import { buildShoe, shuffleCards } from "./cards";
 import { validateOpeningMelds } from "./melds";
 import { findLayOffTargets, applyLayOff, validateLayOff } from "./layoffs";
+import {
+  gameComplete,
+  lowestScoreWinnerIds,
+  scoreRound,
+  TOTAL_ROUNDS,
+} from "./scoring";
 import type {
   Action,
   ApplyActionResult,
@@ -79,6 +85,42 @@ function cardsOwnedByPlayer(hand: PlayerState["hand"], melds: OpeningMeld[]): st
   }
 
   return null;
+}
+
+const GO_OUT_ERROR = "Must discard to go out";
+
+function wouldMeldOut(hand: PlayerState["hand"], removedCardIds: string[]): boolean {
+  const ids = new Set(removedCardIds);
+  return hand.filter((card) => !ids.has(card.id)).length === 0;
+}
+
+function finishRound(state: GameState, goerPlayerId: string): GameState {
+  const { roundScores, cumulativeScores } = scoreRound(state, goerPlayerId);
+  const lastRoundSummary = {
+    roundNumber: state.roundNumber,
+    goerPlayerId,
+    roundScores,
+    cumulativeScores,
+  };
+
+  if (state.roundNumber >= TOTAL_ROUNDS) {
+    return {
+      ...state,
+      phase: "gameEnd",
+      roundPhase: "scored",
+      cumulativeScores,
+      lastRoundSummary,
+      winnerPlayerIds: lowestScoreWinnerIds(state.players, cumulativeScores),
+    };
+  }
+
+  return {
+    ...state,
+    phase: "roundEnd",
+    roundPhase: "scored",
+    cumulativeScores,
+    lastRoundSummary,
+  };
 }
 
 function buildTableMelds(ownerId: string, melds: OpeningMeld[], existing: TableMeld[]): TableMeld[] {
@@ -162,6 +204,7 @@ export function startRound(state: GameState, options: ShuffleOptions = {}): Game
 
   return {
     ...state,
+    phase: "playing",
     roundNumber: state.roundNumber + 1,
     roundPhase: "active",
     players,
@@ -171,10 +214,34 @@ export function startRound(state: GameState, options: ShuffleOptions = {}): Game
     stock: remainingStock,
     discard: [],
     melds: [],
+    lastRoundSummary: undefined,
+    winnerPlayerIds: undefined,
   };
 }
 
+export function continueToNextRound(state: GameState): GameState {
+  if (gameComplete(state)) {
+    throw new Error("Game is complete");
+  }
+  if (state.phase !== "roundEnd" || state.roundPhase !== "scored") {
+    throw new Error("Round is still active");
+  }
+  return startRound(state, {});
+}
+
 export function legalActions(state: GameState, playerId: string): LegalActions {
+  if (state.phase !== "playing" || state.roundPhase !== "active") {
+    return {
+      canDrawFromStock: false,
+      canDrawFromDiscard: false,
+      canOpen: false,
+      canLayOff: false,
+      canDiscard: false,
+      discardableCards: [],
+      layOffTargets: [],
+    };
+  }
+
   if (!isActivePlayer(state, playerId)) {
     return {
       canDrawFromStock: false,
@@ -322,6 +389,10 @@ export function applyAction(
     }
 
     const meldCardIds = action.melds.flatMap((meld) => meld.cards.map((card) => card.id));
+    if (wouldMeldOut(player.hand, meldCardIds)) {
+      return { state, error: GO_OUT_ERROR };
+    }
+
     const players = [...state.players];
     players[playerIndex] = {
       ...player,
@@ -371,6 +442,10 @@ export function applyAction(
       return { state, error: result.error };
     }
 
+    if (wouldMeldOut(player.hand, [action.card.id])) {
+      return { state, error: GO_OUT_ERROR };
+    }
+
     const players = [...state.players];
     players[playerIndex] = {
       ...player,
@@ -397,21 +472,26 @@ export function applyAction(
     }
 
     const players = [...state.players];
+    const nextHand = removeCardsFromHand(player.hand, [action.card.id]);
     players[playerIndex] = {
       ...player,
       openedThisTurn: false,
-      hand: removeCardsFromHand(player.hand, [action.card.id]),
+      hand: nextHand,
     };
 
-    return {
-      state: {
-        ...state,
-        players,
-        discard: [...state.discard, action.card],
-        activeSeatIndex: nextSeatClockwise(state, state.activeSeatIndex),
-        turnPhase: "draw",
-      },
+    const nextState: GameState = {
+      ...state,
+      players,
+      discard: [...state.discard, action.card],
+      activeSeatIndex: nextSeatClockwise(state, state.activeSeatIndex),
+      turnPhase: "draw",
     };
+
+    if (nextHand.length === 0) {
+      return { state: finishRound(nextState, playerId) };
+    }
+
+    return { state: nextState };
   }
 
   return { state, error: "Unknown action" };

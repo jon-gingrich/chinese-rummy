@@ -39,6 +39,7 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
   const legalActions = useQuery(api.games.getLegalActions, { roomId });
   const draw = useMutation(api.games.draw);
   const discard = useMutation(api.games.discard);
+  const continueRound = useMutation(api.games.continueRound);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -85,6 +86,21 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
     }
   }
 
+  async function handleContinueRound() {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const result = await continueRound({ roomId });
+      if (result.error) {
+        setStatus(result.error);
+      }
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not continue");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleDiscard() {
     const card = sortedHand.find((entry) => entry.id === selectedCardId);
     if (!card) {
@@ -123,6 +139,58 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
 
   return (
     <div className="space-y-8">
+      {table.phase === "gameEnd" ? (
+        <section className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-6">
+          <h2 className="text-2xl font-semibold text-emerald-100">Game over</h2>
+          <p className="mt-2 text-sm text-emerald-50/90">
+            Winner
+            {table.winnerPlayerIds && table.winnerPlayerIds.length > 1 ? "s" : ""}:{" "}
+            {table.players
+              .filter((player) => table.winnerPlayerIds?.includes(player.id))
+              .map((player) => player.displayName)
+              .join(", ") || "—"}
+          </p>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            Lowest cumulative deadwood after ten rounds.
+          </p>
+        </section>
+      ) : null}
+
+      {table.lastRoundSummary ? (
+        <section className="rounded-2xl border border-white/10 bg-[var(--card)] p-6">
+          <h2 className="text-xl font-semibold">Round {table.lastRoundSummary.roundNumber} summary</h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            {table.players.find((player) => player.id === table.lastRoundSummary?.goerPlayerId)
+              ?.displayName ?? "A player"}{" "}
+            went out.
+          </p>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {table.players.map((player, index) => (
+              <div
+                key={player.id}
+                className="flex items-center justify-between rounded-xl border border-white/10 px-4 py-3 text-sm"
+              >
+                <span>{player.displayName}</span>
+                <span>
+                  +{table.lastRoundSummary?.roundScores[index] ?? 0} (
+                  {table.lastRoundSummary?.cumulativeScores[index] ?? 0} total)
+                </span>
+              </div>
+            ))}
+          </div>
+          {table.canContinueRound ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void handleContinueRound()}
+              className="mt-4 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-black disabled:opacity-50"
+            >
+              Start round {table.roundNumber + 1}
+            </button>
+          ) : null}
+        </section>
+      ) : null}
+
       <section className="rounded-2xl border border-white/10 bg-[var(--card)] p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -132,7 +200,11 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
             <h2 className="text-2xl font-semibold">Table</h2>
             <p className="mt-1 text-sm text-[var(--muted)]">Contract: {table.contract}</p>
             <p className="mt-1 text-sm text-[var(--muted)]">
-              {isMyTurn
+              {table.phase === "roundEnd"
+                ? "Round complete — review scores and start the next round."
+                : table.phase === "gameEnd"
+                  ? "Final scores are locked in."
+                  : isMyTurn
                 ? table.turnPhase === "draw"
                   ? "Your turn — draw a card."
                   : myPlayer?.playerPhase === "notOpened"
@@ -178,6 +250,7 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
               </div>
               <div className="text-right text-sm">
                 <p>{player.handSize} cards</p>
+                <p className="text-[var(--muted)]">{player.cumulativeScore} pts</p>
                 {player.playerPhase === "opened" ? (
                   <p className="text-emerald-200">Opened</p>
                 ) : null}
@@ -214,7 +287,7 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
         </section>
       ) : null}
 
-      {canOpen ? (
+      {table.phase === "playing" && canOpen ? (
         <OpeningPanel
           roomId={roomId}
           roundNumber={table.roundNumber}
@@ -224,7 +297,7 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
         />
       ) : null}
 
-      {canLayOff ? (
+      {table.phase === "playing" && canLayOff ? (
         <LayOffPanel
           roomId={roomId}
           hand={sortedHand}
@@ -234,6 +307,7 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
         />
       ) : null}
 
+      {table.phase === "playing" ? (
       <section className="rounded-2xl border border-white/10 bg-[var(--card)] p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-lg font-medium">Your hand</h3>
@@ -291,6 +365,7 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
           })}
         </div>
       </section>
+      ) : null}
 
       {status ? <p className="text-sm text-rose-200">{status}</p> : null}
     </div>

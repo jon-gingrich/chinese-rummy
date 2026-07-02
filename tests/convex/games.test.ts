@@ -257,8 +257,8 @@ describe("games.layOff", () => {
       card: makeCard("hearts", "7"),
     });
 
-    expect(result.error).toBeUndefined();
-    expect(result.table.melds[0]?.cards).toHaveLength(4);
-    expect(result.hand).toHaveLength(0);
+    expect(result.error).toBe("Must discard to go out");
+    expect(result.table.melds[0]?.cards).toHaveLength(3);
+    expect(result.hand).toHaveLength(1);
   });
 });

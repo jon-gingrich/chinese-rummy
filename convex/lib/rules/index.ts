@@ -1,9 +1,17 @@
 export {
   applyAction,
+  continueToNextRound,
   createGame,
   legalActions,
   startRound,
 } from "./engine";
+export {
+  deadwoodValue,
+  gameComplete,
+  scoreHand,
+  scoreRound,
+  TOTAL_ROUNDS,
+} from "./scoring";
 export { buildShoe } from "./cards";
 export { formatContract, getContractForRound } from "./contracts";
 export type {
@@ -19,6 +27,7 @@ export type {
   OpeningMeld,
   PlayerState,
   Rank,
+  RoundSummary,
   ShuffleOptions,
   Suit,
   TableMeld,

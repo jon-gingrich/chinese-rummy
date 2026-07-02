@@ -65,6 +65,13 @@ export type PlayerState = {
   hand: Card[];
 };
 
+export type RoundSummary = {
+  roundNumber: number;
+  goerPlayerId: string;
+  roundScores: number[];
+  cumulativeScores: number[];
+};
+
 export type GameState = {
   phase: GamePhase;
   roundNumber: number;
@@ -77,6 +84,8 @@ export type GameState = {
   discard: Card[];
   melds: TableMeld[];
   cumulativeScores: number[];
+  lastRoundSummary?: RoundSummary;
+  winnerPlayerIds?: string[];
 };
 
 export type CreateGameConfig = {

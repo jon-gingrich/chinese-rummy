@@ -9,7 +9,7 @@ import {
   handForPlayer,
 } from "./lib/games";
 import { getCurrentUser } from "./lib/auth";
-import { applyAction, legalActions } from "./lib/rules";
+import { applyAction, continueToNextRound, legalActions } from "./lib/rules";
 import type { GameState } from "./lib/rules";
 import {
   actionResultValidator,
@@ -219,5 +219,26 @@ export const layOff = mutation({
       user._id,
       result.error,
     );
+  },
+});
+
+export const continueRound = mutation({
+  args: { roomId: v.id("rooms") },
+  returns: actionResultValidator,
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    const { game } = await getGameForRoom(ctx, args.roomId);
+    const state = game.state as GameState;
+    assertPlayerInGame(state, user._id);
+
+    let nextState: GameState;
+    try {
+      nextState = continueToNextRound(state);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Cannot continue round";
+      return await persistAndRespond(ctx, game._id, state, user._id, message);
+    }
+
+    return await persistAndRespond(ctx, game._id, nextState, user._id);
   },
 });

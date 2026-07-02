@@ -109,7 +109,7 @@ describe("lay-off timing", () => {
               ...player,
               playerPhase: "opened",
               openedThisTurn: false,
-              hand: [makeCard("hearts", "7")],
+              hand: [makeCard("hearts", "7"), makeCard("clubs", "9")],
             }
           : player,
       ),
@@ -138,7 +138,7 @@ describe("lay-off timing", () => {
     expect(result.state.melds[0]?.cards).toHaveLength(4);
     expect(
       result.state.players.find((player) => player.id === activeId)?.hand,
-    ).toHaveLength(0);
+    ).toHaveLength(1);
   });
 });
 
@@ -157,7 +157,7 @@ describe("wild relocation", () => {
           seatIndex: 0,
           playerPhase: "opened",
           openedThisTurn: false,
-          hand: [makeCard("hearts", "7")],
+          hand: [makeCard("hearts", "7"), makeCard("clubs", "9")],
         },
         {
           id: ownerId,
@@ -234,7 +234,7 @@ describe("wild relocation", () => {
           seatIndex: 0,
           playerPhase: "opened",
           openedThisTurn: false,
-          hand: [makeCard("hearts", "9")],
+          hand: [makeCard("hearts", "9"), makeCard("clubs", "5")],
         },
         {
           id: ownerId,

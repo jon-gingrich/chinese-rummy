@@ -37,7 +37,7 @@ export async function buildTableView(
   state: GameState,
 ) {
   const players = await Promise.all(
-    state.players.map(async (player) => {
+    state.players.map(async (player, index) => {
       const user = await ctx.db.get("users", player.id as Id<"users">);
       if (!user) {
         throw new Error("Player not found");
@@ -50,6 +50,8 @@ export async function buildTableView(
         playerPhase: player.playerPhase,
         isActive: player.seatIndex === state.activeSeatIndex,
         isDealer: player.seatIndex === state.dealerSeatIndex,
+        cumulativeScore: state.cumulativeScores[index] ?? 0,
+        roundScore: state.lastRoundSummary?.roundScores[index],
       };
     }),
   );
@@ -68,6 +70,9 @@ export async function buildTableView(
     players,
     melds: state.melds,
     cumulativeScores: state.cumulativeScores,
+    lastRoundSummary: state.lastRoundSummary,
+    winnerPlayerIds: state.winnerPlayerIds,
+    canContinueRound: state.phase === "roundEnd",
   };
 }
 
