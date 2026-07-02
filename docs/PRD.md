@@ -251,17 +251,21 @@ Per ADR 0007:
 
 ### Issue tracker
 
-No issue tracker is configured in this repo (`/setup-matt-pocock-skills` not run; GitHub CLI unavailable). This PRD is published at `docs/PRD.md` with **ready-for-agent** status. When an issue tracker is added, import this document and apply the `ready-for-agent` label.
+Issues published on GitHub with the **ready-for-agent** label:
 
-### Suggested implementation order (for `/to-issues`)
+| Slice | Issue |
+| ----- | ----- |
+| 1. Scaffold + auth | [#1](https://github.com/jon-gingrich/chinese-rummy/issues/1) |
+| 2. Room lobby | [#2](https://github.com/jon-gingrich/chinese-rummy/issues/2) |
+| 3. Turn loop tracer | [#3](https://github.com/jon-gingrich/chinese-rummy/issues/3) |
+| 4. Opening + wilds | [#4](https://github.com/jon-gingrich/chinese-rummy/issues/4) |
+| 5. Lay-off + relocation | [#5](https://github.com/jon-gingrich/chinese-rummy/issues/5) |
+| 6. Scoring + ten rounds | [#6](https://github.com/jon-gingrich/chinese-rummy/issues/6) |
+| 7. Resume + my games | [#7](https://github.com/jon-gingrich/chinese-rummy/issues/7) |
+| 8. Guest + account linking | [#8](https://github.com/jon-gingrich/chinese-rummy/issues/8) |
+| 9. Table UX polish | [#9](https://github.com/jon-gingrich/chinese-rummy/issues/9) |
 
-1. Project scaffold (Next.js, Convex, Auth)
-2. Rules Engine core + test suite
-3. Room Service (lobby)
-4. Game Server wiring (mutations/queries)
-5. Table UI (playable end-to-end)
-6. Resume / my games list
-7. Rules reference panel + polish
+Local copies: `docs/issues/`. Re-publish with `node scripts/publish-issues.mjs` (creates duplicates — for fresh repos only).
 
 ### Domain references
 
