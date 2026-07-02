@@ -61,7 +61,7 @@ export type PlayerState = {
   id: string;
   seatIndex: number;
   playerPhase: PlayerPhase;
-  openedThisTurn: boolean;
+  openedThisTurn?: boolean;
   hand: Card[];
 };
 

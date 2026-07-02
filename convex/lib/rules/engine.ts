@@ -49,6 +49,10 @@ function isActivePlayer(state: GameState, playerId: string): boolean {
   return player?.seatIndex === state.activeSeatIndex;
 }
 
+function hasOpenedThisTurn(player: PlayerState): boolean {
+  return player.openedThisTurn ?? false;
+}
+
 function cardInHand(hand: PlayerState["hand"], cardId: string): boolean {
   return hand.some((card) => card.id === cardId);
 }
@@ -214,7 +218,7 @@ export function legalActions(state: GameState, playerId: string): LegalActions {
     state.melds,
     player.hand,
     player.playerPhase === "opened",
-    player.openedThisTurn,
+    hasOpenedThisTurn(player),
   );
 
   return {
@@ -351,7 +355,7 @@ export function applyAction(
         relocation: action.relocation,
       },
       player.playerPhase === "opened",
-      player.openedThisTurn,
+      hasOpenedThisTurn(player),
     );
     if (validationError) {
       return { state, error: validationError };

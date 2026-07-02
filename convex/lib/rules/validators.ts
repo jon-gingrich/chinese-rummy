@@ -89,7 +89,7 @@ export const playerStateValidator = v.object({
   id: v.string(),
   seatIndex: v.number(),
   playerPhase: v.union(v.literal("notOpened"), v.literal("opened")),
-  openedThisTurn: v.boolean(),
+  openedThisTurn: v.optional(v.boolean()),
   hand: v.array(cardValidator),
 });
 
