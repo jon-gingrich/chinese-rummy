@@ -113,6 +113,7 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
       return;
     }
     setSelectedCardId((current) => (current === cardId ? null : cardId));
+    setStatus(null);
   }
 
   if (
@@ -324,11 +325,11 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
         <LayOffPanel
           roomId={roomId}
           hand={sortedHand}
-          targets={legalActions.layOffTargets}
+          melds={table.melds}
+          selectedCardId={selectedCardId}
           meldLabels={meldLabels}
-          sortMode={handSortMode}
-          onSortModeChange={setHandSortMode}
           onStatus={setStatus}
+          onComplete={() => setSelectedCardId(null)}
         />
       ) : null}
 

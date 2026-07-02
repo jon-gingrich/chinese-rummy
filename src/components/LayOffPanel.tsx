@@ -1,12 +1,11 @@
 "use client";
 
 import { useMutation } from "convex/react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
-import type { Card, LayOffTarget, NaturalRank } from "../../convex/lib/rules/types";
-import { type HandSortMode } from "../lib/cards";
-import { CardFan } from "./CardFan";
+import { findLayOffTargets } from "../../convex/lib/rules/layoffs";
+import type { Card, LayOffTarget, NaturalRank, TableMeld } from "../../convex/lib/rules/types";
 
 const NATURAL_RANKS: NaturalRank[] = [
   "A",
@@ -27,11 +26,11 @@ const NATURAL_RANKS: NaturalRank[] = [
 type LayOffPanelProps = {
   roomId: Id<"rooms">;
   hand: Card[];
-  targets: LayOffTarget[];
+  melds: TableMeld[];
+  selectedCardId: string | null;
   meldLabels: Record<string, string>;
-  sortMode: HandSortMode;
-  onSortModeChange: (mode: HandSortMode) => void;
   onStatus: (message: string | null) => void;
+  onComplete?: () => void;
 };
 
 function targetKey(target: LayOffTarget): string {
@@ -44,25 +43,34 @@ function targetKey(target: LayOffTarget): string {
 export function LayOffPanel({
   roomId,
   hand,
-  targets,
+  melds,
+  selectedCardId,
   meldLabels,
-  sortMode,
-  onSortModeChange,
   onStatus,
+  onComplete,
 }: LayOffPanelProps) {
   const layOff = useMutation(api.games.layOff);
-  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [selectedTargetKey, setSelectedTargetKey] = useState<string | null>(null);
   const [destinationMeldId, setDestinationMeldId] = useState<string | null>(null);
   const [wildRank, setWildRank] = useState<NaturalRank>("7");
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    setSelectedTargetKey(null);
+    setDestinationMeldId(null);
+  }, [selectedCardId]);
+
+  const selectedCard = useMemo(
+    () => hand.find((entry) => entry.id === selectedCardId) ?? null,
+    [hand, selectedCardId],
+  );
+
   const cardTargets = useMemo(() => {
-    if (!selectedCardId) {
+    if (!selectedCard) {
       return [];
     }
-    return targets.filter((target) => target.cardId === selectedCardId);
-  }, [selectedCardId, targets]);
+    return findLayOffTargets(melds, [selectedCard], true, false);
+  }, [melds, selectedCard]);
 
   const selectedTarget = useMemo(
     () => cardTargets.find((target) => targetKey(target) === selectedTargetKey) ?? null,
@@ -70,8 +78,7 @@ export function LayOffPanel({
   );
 
   async function submitLayOff() {
-    const card = hand.find((entry) => entry.id === selectedCardId);
-    if (!card || !selectedTarget) {
+    if (!selectedCard || !selectedTarget) {
       onStatus("Select a card and lay-off target");
       return;
     }
@@ -87,7 +94,7 @@ export function LayOffPanel({
       const result = await layOff({
         roomId,
         targetMeldId: selectedTarget.meldId,
-        card,
+        card: selectedCard,
         replaceWildCardId:
           selectedTarget.mode === "replaceWild"
             ? selectedTarget.replaceWildCardId
@@ -104,9 +111,9 @@ export function LayOffPanel({
       if (result.error) {
         onStatus(result.error);
       } else {
-        setSelectedCardId(null);
         setSelectedTargetKey(null);
         setDestinationMeldId(null);
+        onComplete?.();
       }
     } catch (error) {
       onStatus(error instanceof Error ? error.message : "Lay-off failed");
@@ -115,56 +122,44 @@ export function LayOffPanel({
     }
   }
 
-  if (targets.length === 0) {
-    return null;
-  }
-
   return (
     <section className="rounded-2xl border border-white/10 bg-[var(--card)] p-6">
       <div className="mb-4 space-y-1">
         <h3 className="text-lg font-medium">Lay off</h3>
         <p className="text-sm text-[var(--muted)]">
-          Tap a card, choose a meld, then lay off.
+          Tap a card in your hand below, choose a meld, then lay off.
         </p>
       </div>
 
-      <CardFan
-        cards={hand}
-        selectedId={selectedCardId}
-        onToggle={(cardId) => {
-          if (busy) {
-            return;
-          }
-          setSelectedCardId((current) => (current === cardId ? null : cardId));
-          setSelectedTargetKey(null);
-          setDestinationMeldId(null);
-        }}
-        disabled={busy}
-        sortMode={sortMode}
-        onSortModeChange={onSortModeChange}
-      />
-
       {selectedCardId ? (
         <div className="mb-4 space-y-2">
-          {cardTargets.map((target) => (
-            <button
-              key={targetKey(target)}
-              type="button"
-              disabled={busy}
-              onClick={() => setSelectedTargetKey(targetKey(target))}
-              className={`block w-full rounded-xl border px-4 py-3 text-left text-sm ${
-                selectedTargetKey === targetKey(target)
-                  ? "border-[var(--accent)] bg-[var(--accent)]/10"
-                  : "border-white/10"
-              }`}
-            >
-              {target.mode === "add"
-                ? `Add to ${meldLabels[target.meldId] ?? target.meldId}`
-                : `Replace wild on ${meldLabels[target.meldId] ?? target.meldId}`}
-            </button>
-          ))}
+          {cardTargets.length > 0 ? (
+            cardTargets.map((target) => (
+              <button
+                key={targetKey(target)}
+                type="button"
+                disabled={busy}
+                onClick={() => setSelectedTargetKey(targetKey(target))}
+                className={`block w-full rounded-xl border px-4 py-3 text-left text-sm ${
+                  selectedTargetKey === targetKey(target)
+                    ? "border-[var(--accent)] bg-[var(--accent)]/10"
+                    : "border-white/10"
+                }`}
+              >
+                {target.mode === "add"
+                  ? `Add to ${meldLabels[target.meldId] ?? target.meldId}`
+                  : `Replace wild on ${meldLabels[target.meldId] ?? target.meldId}`}
+              </button>
+            ))
+          ) : (
+            <p className="text-sm text-[var(--muted)]">
+              This card cannot be laid off on any meld.
+            </p>
+          )}
         </div>
-      ) : null}
+      ) : (
+        <p className="mb-4 text-sm text-[var(--muted)]">Select a card from your hand to begin.</p>
+      )}
 
       {selectedTarget?.mode === "replaceWild" ? (
         <div className="mb-4 space-y-3">
@@ -202,7 +197,7 @@ export function LayOffPanel({
 
       <button
         type="button"
-        disabled={busy || !selectedCardId || !selectedTarget}
+        disabled={busy || !selectedCard || !selectedTarget}
         onClick={() => void submitLayOff()}
         className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-black disabled:opacity-50"
       >

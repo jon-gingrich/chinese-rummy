@@ -67,6 +67,34 @@ describe("findLayOffTargets", () => {
     });
   });
 
+  it("allows adding a sixth five to a five-set with a joker", () => {
+    const joker = makeCard("joker", "JOKER", 0);
+    const fiveDiamond = makeCard("diamonds", "5", 0);
+    const melds = [
+      tableMeld(
+        "five-set",
+        "player-1",
+        "set",
+        [
+          makeCard("hearts", "5", 0),
+          makeCard("hearts", "5", 1),
+          joker,
+          makeCard("clubs", "5", 0),
+          makeCard("spades", "5", 0),
+        ],
+        [{ cardId: joker.id, asRank: "5" }],
+      ),
+    ];
+
+    const targets = findLayOffTargets(melds, [fiveDiamond], true, false);
+
+    expect(targets).toContainEqual({
+      cardId: fiveDiamond.id,
+      meldId: "five-set",
+      mode: "add",
+    });
+  });
+
   it("offers wild replacement on runs", () => {
     const joker = makeCard("joker", "JOKER", 0);
     const naturalEight = makeCard("hearts", "8");
