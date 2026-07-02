@@ -61,6 +61,7 @@ export type PlayerState = {
   id: string;
   seatIndex: number;
   playerPhase: PlayerPhase;
+  openedThisTurn: boolean;
   hand: Card[];
 };
 
@@ -85,17 +86,43 @@ export type CreateGameConfig = {
   }>;
 };
 
+export type WildRelocation = {
+  destinationMeldId: string;
+  wildDeclaration?: WildDeclaration;
+};
+
+export type LayOffTarget =
+  | {
+      meldId: string;
+      mode: "add";
+    }
+  | {
+      meldId: string;
+      mode: "replaceWild";
+      replaceWildCardId: string;
+      relocationDestinations: string[];
+    };
+
 export type Action =
   | { kind: "draw"; source: "stock" | "discard" }
   | { kind: "open"; melds: OpeningMeld[] }
+  | {
+      kind: "layOff";
+      targetMeldId: string;
+      card: Card;
+      replaceWildCardId?: string;
+      relocation?: WildRelocation;
+    }
   | { kind: "discard"; card: Card };
 
 export type LegalActions = {
   canDrawFromStock: boolean;
   canDrawFromDiscard: boolean;
   canOpen: boolean;
+  canLayOff: boolean;
   canDiscard: boolean;
   discardableCards: Card[];
+  layOffTargets: LayOffTarget[];
 };
 
 export type ApplyActionResult = {

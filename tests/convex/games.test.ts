@@ -210,3 +210,55 @@ describe("games.open", () => {
     expect(result.error).toBe("Opening melds do not match the round contract");
   });
 });
+
+describe("games.layOff", () => {
+  it("lets an opened player lay off on another meld", async () => {
+    const { asHost, asGuest, roomId, t } = await startTwoPlayerGame();
+    const tableBefore = await asHost.query(api.games.getGame, { roomId });
+    const host = tableBefore!.players.find((player) => player.displayName === "Host")!;
+    const guest = tableBefore!.players.find((player) => player.displayName === "Guest")!;
+
+    await t.run(async (ctx) => {
+      const room = await ctx.db.get("rooms", roomId);
+      const game = await ctx.db.get("games", room!.gameId!);
+      const state = structuredClone(game!.state);
+      state.turnPhase = "discard";
+      state.activeSeatIndex = host.seatIndex;
+      state.players = state.players.map((player: { id: string }) => {
+        if (player.id === host.id) {
+          return {
+            ...player,
+            playerPhase: "opened",
+            openedThisTurn: false,
+            hand: [makeCard("hearts", "7")],
+          };
+        }
+        return { ...player, playerPhase: "opened", openedThisTurn: false, hand: [] };
+      });
+      state.melds = [
+        {
+          id: "guest-set",
+          ownerId: guest.id,
+          kind: "set",
+          cards: [
+            makeCard("diamonds", "7"),
+            makeCard("clubs", "7"),
+            makeCard("spades", "7"),
+          ],
+          wildDeclarations: [],
+        },
+      ];
+      await ctx.db.patch("games", game!._id, { state });
+    });
+
+    const result = await asHost.mutation(api.games.layOff, {
+      roomId,
+      targetMeldId: "guest-set",
+      card: makeCard("hearts", "7"),
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(result.table.melds[0]?.cards).toHaveLength(4);
+    expect(result.hand).toHaveLength(0);
+  });
+});

@@ -67,10 +67,29 @@ export const tableMeldValidator = v.object({
   wildDeclarations: v.array(wildDeclarationValidator),
 });
 
+export const wildRelocationValidator = v.object({
+  destinationMeldId: v.string(),
+  wildDeclaration: v.optional(wildDeclarationValidator),
+});
+
+export const layOffTargetValidator = v.union(
+  v.object({
+    meldId: v.string(),
+    mode: v.literal("add"),
+  }),
+  v.object({
+    meldId: v.string(),
+    mode: v.literal("replaceWild"),
+    replaceWildCardId: v.string(),
+    relocationDestinations: v.array(v.string()),
+  }),
+);
+
 export const playerStateValidator = v.object({
   id: v.string(),
   seatIndex: v.number(),
   playerPhase: v.union(v.literal("notOpened"), v.literal("opened")),
+  openedThisTurn: v.boolean(),
   hand: v.array(cardValidator),
 });
 
@@ -92,8 +111,10 @@ export const legalActionsValidator = v.object({
   canDrawFromStock: v.boolean(),
   canDrawFromDiscard: v.boolean(),
   canOpen: v.boolean(),
+  canLayOff: v.boolean(),
   canDiscard: v.boolean(),
   discardableCards: v.array(cardValidator),
+  layOffTargets: v.array(layOffTargetValidator),
 });
 
 export const tablePlayerValidator = v.object({

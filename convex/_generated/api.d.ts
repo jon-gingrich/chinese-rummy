@@ -18,6 +18,7 @@ import type * as lib_rules_cards from "../lib/rules/cards.js";
 import type * as lib_rules_contracts from "../lib/rules/contracts.js";
 import type * as lib_rules_engine from "../lib/rules/engine.js";
 import type * as lib_rules_index from "../lib/rules/index.js";
+import type * as lib_rules_layoffs from "../lib/rules/layoffs.js";
 import type * as lib_rules_melds from "../lib/rules/melds.js";
 import type * as lib_rules_types from "../lib/rules/types.js";
 import type * as lib_rules_validators from "../lib/rules/validators.js";
@@ -41,6 +42,7 @@ declare const fullApi: ApiFromModules<{
   "lib/rules/contracts": typeof lib_rules_contracts;
   "lib/rules/engine": typeof lib_rules_engine;
   "lib/rules/index": typeof lib_rules_index;
+  "lib/rules/layoffs": typeof lib_rules_layoffs;
   "lib/rules/melds": typeof lib_rules_melds;
   "lib/rules/types": typeof lib_rules_types;
   "lib/rules/validators": typeof lib_rules_validators;

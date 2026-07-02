@@ -1,5 +1,6 @@
 import { buildShoe, shuffleCards } from "./cards";
 import { validateOpeningMelds } from "./melds";
+import { findLayOffTargets, applyLayOff, validateLayOff } from "./layoffs";
 import type {
   Action,
   ApplyActionResult,
@@ -21,6 +22,7 @@ function sortPlayersBySeat(players: CreateGameConfig["players"]): PlayerState[] 
       id: player.id,
       seatIndex: player.seatIndex,
       playerPhase: "notOpened" as const,
+      openedThisTurn: false,
       hand: [],
     }));
 }
@@ -150,6 +152,7 @@ export function startRound(state: GameState, options: ShuffleOptions = {}): Game
   const players = state.players.map((player, index) => ({
     ...player,
     playerPhase: "notOpened" as const,
+    openedThisTurn: false,
     hand: hands.slice(index * CARDS_PER_HAND, (index + 1) * CARDS_PER_HAND),
   }));
 
@@ -173,8 +176,10 @@ export function legalActions(state: GameState, playerId: string): LegalActions {
       canDrawFromStock: false,
       canDrawFromDiscard: false,
       canOpen: false,
+      canLayOff: false,
       canDiscard: false,
       discardableCards: [],
+      layOffTargets: [],
     };
   }
 
@@ -184,8 +189,10 @@ export function legalActions(state: GameState, playerId: string): LegalActions {
       canDrawFromStock: false,
       canDrawFromDiscard: false,
       canOpen: false,
+      canLayOff: false,
       canDiscard: false,
       discardableCards: [],
+      layOffTargets: [],
     };
   }
 
@@ -196,17 +203,28 @@ export function legalActions(state: GameState, playerId: string): LegalActions {
       canDrawFromStock,
       canDrawFromDiscard: state.discard.length > 0,
       canOpen: false,
+      canLayOff: false,
       canDiscard: false,
       discardableCards: [],
+      layOffTargets: [],
     };
   }
+
+  const layOffTargets = findLayOffTargets(
+    state.melds,
+    player.hand,
+    player.playerPhase === "opened",
+    player.openedThisTurn,
+  );
 
   return {
     canDrawFromStock: false,
     canDrawFromDiscard: false,
     canOpen: player.playerPhase === "notOpened",
+    canLayOff: layOffTargets.length > 0,
     canDiscard: true,
     discardableCards: [...player.hand],
+    layOffTargets,
   };
 }
 
@@ -304,6 +322,7 @@ export function applyAction(
     players[playerIndex] = {
       ...player,
       playerPhase: "opened",
+      openedThisTurn: true,
       hand: removeCardsFromHand(player.hand, meldCardIds),
     };
 
@@ -312,6 +331,53 @@ export function applyAction(
         ...state,
         players,
         melds: [...state.melds, ...buildTableMelds(playerId, action.melds, state.melds)],
+      },
+    };
+  }
+
+  if (action.kind === "layOff") {
+    if (state.turnPhase !== "discard") {
+      return { state, error: "Must draw before laying off" };
+    }
+
+    const player = state.players[playerIndex]!;
+    const validationError = validateLayOff(
+      state.melds,
+      player.hand,
+      {
+        targetMeldId: action.targetMeldId,
+        card: action.card,
+        replaceWildCardId: action.replaceWildCardId,
+        relocation: action.relocation,
+      },
+      player.playerPhase === "opened",
+      player.openedThisTurn,
+    );
+    if (validationError) {
+      return { state, error: validationError };
+    }
+
+    const result = applyLayOff(state.melds, {
+      targetMeldId: action.targetMeldId,
+      card: action.card,
+      replaceWildCardId: action.replaceWildCardId,
+      relocation: action.relocation,
+    });
+    if ("error" in result) {
+      return { state, error: result.error };
+    }
+
+    const players = [...state.players];
+    players[playerIndex] = {
+      ...player,
+      hand: removeCardsFromHand(player.hand, [action.card.id]),
+    };
+
+    return {
+      state: {
+        ...state,
+        players,
+        melds: result.melds,
       },
     };
   }
@@ -329,6 +395,7 @@ export function applyAction(
     const players = [...state.players];
     players[playerIndex] = {
       ...player,
+      openedThisTurn: false,
       hand: removeCardsFromHand(player.hand, [action.card.id]),
     };
 

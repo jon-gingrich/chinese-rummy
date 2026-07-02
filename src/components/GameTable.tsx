@@ -6,6 +6,7 @@ import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import type { Card } from "../../convex/lib/rules/types";
 import { OpeningPanel } from "./OpeningPanel";
+import { LayOffPanel } from "./LayOffPanel";
 
 function formatCard(card: Card): string {
   if (card.rank === "JOKER") {
@@ -54,6 +55,18 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
     table?.turnPhase === "discard" &&
     myPlayer?.playerPhase === "notOpened" &&
     legalActions?.canOpen;
+
+  const meldLabels = useMemo(() => {
+    const labels: Record<string, string> = {};
+    for (const meld of table?.melds ?? []) {
+      const owner = table?.players.find((player) => player.id === meld.ownerId);
+      labels[meld.id] = `${owner?.displayName ?? "Player"} ${meld.kind}`;
+    }
+    return labels;
+  }, [table]);
+
+  const canLayOff =
+    isMyTurn && table?.turnPhase === "discard" && (legalActions?.canLayOff ?? false);
 
   async function handleDraw(source: "stock" | "discard") {
     setBusy(true);
@@ -124,7 +137,9 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
                   ? "Your turn — draw a card."
                   : myPlayer?.playerPhase === "notOpened"
                     ? "Your turn — open or discard."
-                    : "Your turn — discard a card."
+                    : canLayOff
+                      ? "Your turn — lay off, then discard."
+                      : "Your turn — discard a card."
                 : `Waiting for ${
                     table.players.find((player) => player.isActive)?.displayName ??
                     "next player"
@@ -205,6 +220,16 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
           roundNumber={table.roundNumber}
           contract={table.contract}
           hand={sortedHand}
+          onStatus={setStatus}
+        />
+      ) : null}
+
+      {canLayOff ? (
+        <LayOffPanel
+          roomId={roomId}
+          hand={sortedHand}
+          targets={legalActions.layOffTargets}
+          meldLabels={meldLabels}
           onStatus={setStatus}
         />
       ) : null}

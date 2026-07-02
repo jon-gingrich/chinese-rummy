@@ -17,6 +17,7 @@ import {
   legalActionsValidator,
   openingMeldValidator,
   tableViewValidator,
+  wildRelocationValidator,
 } from "./lib/rules/validators";
 
 async function persistAndRespond(
@@ -173,6 +174,43 @@ export const open = mutation({
     assertPlayerInGame(state, user._id);
 
     const result = applyAction(state, { kind: "open", melds: args.melds }, user._id);
+
+    return await persistAndRespond(
+      ctx,
+      game._id,
+      result.state,
+      user._id,
+      result.error,
+    );
+  },
+});
+
+export const layOff = mutation({
+  args: {
+    roomId: v.id("rooms"),
+    targetMeldId: v.string(),
+    card: cardValidator,
+    replaceWildCardId: v.optional(v.string()),
+    relocation: v.optional(wildRelocationValidator),
+  },
+  returns: actionResultValidator,
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    const { game } = await getGameForRoom(ctx, args.roomId);
+    const state = game.state as GameState;
+    assertPlayerInGame(state, user._id);
+
+    const result = applyAction(
+      state,
+      {
+        kind: "layOff",
+        targetMeldId: args.targetMeldId,
+        card: args.card,
+        replaceWildCardId: args.replaceWildCardId,
+        relocation: args.relocation,
+      },
+      user._id,
+    );
 
     return await persistAndRespond(
       ctx,

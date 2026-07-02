@@ -12,6 +12,7 @@ export type {
   Card,
   CreateGameConfig,
   GameState,
+  LayOffTarget,
   LegalActions,
   MeldKind,
   NaturalRank,
@@ -23,4 +24,6 @@ export type {
   TableMeld,
   TurnPhase,
   WildDeclaration,
+  WildRelocation,
 } from "./types";
+export { findLayOffTargets, applyLayOff } from "./layoffs";

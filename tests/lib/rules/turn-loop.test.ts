@@ -78,8 +78,10 @@ describe("legalActions", () => {
       canDrawFromStock: true,
       canDrawFromDiscard: false,
       canOpen: false,
+      canLayOff: false,
       canDiscard: false,
       discardableCards: [],
+      layOffTargets: [],
     });
 
     state = applyAction(state, { kind: "draw", source: "stock" }, activeId).state;
@@ -89,8 +91,10 @@ describe("legalActions", () => {
       canDrawFromStock: false,
       canDrawFromDiscard: false,
       canOpen: true,
+      canLayOff: false,
       canDiscard: true,
       discardableCards: discardable,
+      layOffTargets: [],
     });
   });
 
@@ -102,8 +106,10 @@ describe("legalActions", () => {
       canDrawFromStock: false,
       canDrawFromDiscard: false,
       canOpen: false,
+      canLayOff: false,
       canDiscard: false,
       discardableCards: [],
+      layOffTargets: [],
     });
   });
 });

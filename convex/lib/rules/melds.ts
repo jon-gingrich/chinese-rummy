@@ -86,6 +86,13 @@ function effectiveRank(
   return card.rank;
 }
 
+export function effectiveRankForCard(
+  card: Card,
+  wildDeclarations: WildDeclaration[],
+): Rank | { error: string } {
+  return effectiveRank(card, wildDeclarations);
+}
+
 function rankValue(rank: Rank, aceHigh: boolean): number {
   if (rank === "JOKER") {
     throw new Error("Joker has no rank value");
@@ -94,6 +101,98 @@ function rankValue(rank: Rank, aceHigh: boolean): number {
     return aceHigh ? 14 : 1;
   }
   return NATURAL_RANKS.indexOf(rank) + 1;
+}
+
+export function validateSetStructure(
+  cards: Card[],
+  wildDeclarations: WildDeclaration[],
+  waiveAdjacency = false,
+): boolean {
+  if (cards.length < 3) {
+    return false;
+  }
+
+  for (const card of cards) {
+    if (undeclaredWild(card, wildDeclarations)) {
+      return false;
+    }
+  }
+
+  if (!waiveAdjacency && hasAdjacentWilds(cards, wildDeclarations)) {
+    return false;
+  }
+
+  const ranks: Rank[] = [];
+  for (const card of cards) {
+    const rank = effectiveRank(card, wildDeclarations);
+    if (typeof rank === "object") {
+      return false;
+    }
+    ranks.push(rank);
+  }
+
+  const target = ranks[0]!;
+  return ranks.every((rank) => rank === target);
+}
+
+function validateRunWithAceModeStructure(
+  cards: Card[],
+  wildDeclarations: WildDeclaration[],
+  aceHigh: boolean,
+  waiveAdjacency: boolean,
+): boolean {
+  if (cards.length < 3) {
+    return false;
+  }
+
+  for (const card of cards) {
+    if (undeclaredWild(card, wildDeclarations)) {
+      return false;
+    }
+  }
+
+  if (!waiveAdjacency && hasAdjacentWilds(cards, wildDeclarations)) {
+    return false;
+  }
+
+  const naturals = cards.filter((card) => !isWildInMeld(card, wildDeclarations));
+  if (naturals.length === 0) {
+    return false;
+  }
+
+  const suit = naturals[0]!.suit;
+  if (naturals.some((card) => card.suit !== suit)) {
+    return false;
+  }
+
+  const values: number[] = [];
+  for (const card of cards) {
+    const rank = effectiveRank(card, wildDeclarations);
+    if (typeof rank === "object") {
+      return false;
+    }
+    values.push(rankValue(rank, aceHigh));
+  }
+
+  const sorted = [...values].sort((left, right) => left - right);
+  for (let index = 1; index < sorted.length; index += 1) {
+    if (sorted[index] !== sorted[index - 1]! + 1) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export function validateRunStructure(
+  cards: Card[],
+  wildDeclarations: WildDeclaration[],
+  waiveAdjacency = false,
+): boolean {
+  return (
+    validateRunWithAceModeStructure(cards, wildDeclarations, false, waiveAdjacency) ||
+    validateRunWithAceModeStructure(cards, wildDeclarations, true, waiveAdjacency)
+  );
 }
 
 function validateSet(
@@ -111,21 +210,10 @@ function validateSet(
     }
   }
 
-  if (hasAdjacentWilds(cards, wildDeclarations)) {
-    return "Wild cards cannot be adjacent";
-  }
-
-  const ranks: Rank[] = [];
-  for (const card of cards) {
-    const rank = effectiveRank(card, wildDeclarations);
-    if (typeof rank === "object") {
-      return rank.error;
+  if (!validateSetStructure(cards, wildDeclarations)) {
+    if (hasAdjacentWilds(cards, wildDeclarations)) {
+      return "Wild cards cannot be adjacent";
     }
-    ranks.push(rank);
-  }
-
-  const target = ranks[0]!;
-  if (!ranks.every((rank) => rank === target)) {
     return "Set cards must share the same rank";
   }
 
@@ -152,30 +240,15 @@ function validateRunWithAceMode(
     return "Wild cards cannot be adjacent";
   }
 
-  const naturals = cards.filter((card) => !isWildInMeld(card, wildDeclarations));
-  if (naturals.length === 0) {
-    return "Run must include at least one natural card";
-  }
-
-  const suit = naturals[0]!.suit;
-  if (naturals.some((card) => card.suit !== suit)) {
-    return "Run cards must share the same suit";
-  }
-
-  const values: number[] = [];
-  for (const card of cards) {
-    const rank = effectiveRank(card, wildDeclarations);
-    if (typeof rank === "object") {
-      return rank.error;
+  if (!validateRunWithAceModeStructure(cards, wildDeclarations, aceHigh, false)) {
+    const naturals = cards.filter((card) => !isWildInMeld(card, wildDeclarations));
+    if (naturals.length === 0) {
+      return "Run must include at least one natural card";
     }
-    values.push(rankValue(rank, aceHigh));
-  }
-
-  const sorted = [...values].sort((left, right) => left - right);
-  for (let index = 1; index < sorted.length; index += 1) {
-    if (sorted[index] !== sorted[index - 1]! + 1) {
-      return "Run cards must be consecutive";
+    if (naturals.some((card) => card.suit !== naturals[0]!.suit)) {
+      return "Run cards must share the same suit";
     }
+    return "Run cards must be consecutive";
   }
 
   return null;
