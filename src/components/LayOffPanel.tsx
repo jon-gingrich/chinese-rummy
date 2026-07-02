@@ -57,9 +57,16 @@ export function LayOffPanel({
   const [wildRank, setWildRank] = useState<NaturalRank>("7");
   const [busy, setBusy] = useState(false);
 
+  const cardTargets = useMemo(() => {
+    if (!selectedCardId) {
+      return [];
+    }
+    return targets.filter((target) => target.cardId === selectedCardId);
+  }, [selectedCardId, targets]);
+
   const selectedTarget = useMemo(
-    () => targets.find((target) => targetKey(target) === selectedTargetKey) ?? null,
-    [selectedTargetKey, targets],
+    () => cardTargets.find((target) => targetKey(target) === selectedTargetKey) ?? null,
+    [cardTargets, selectedTargetKey],
   );
 
   async function submitLayOff() {
@@ -139,7 +146,7 @@ export function LayOffPanel({
 
       {selectedCardId ? (
         <div className="mb-4 space-y-2">
-          {targets.map((target) => (
+          {cardTargets.map((target) => (
             <button
               key={targetKey(target)}
               type="button"

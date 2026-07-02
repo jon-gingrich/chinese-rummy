@@ -74,10 +74,12 @@ export const wildRelocationValidator = v.object({
 
 export const layOffTargetValidator = v.union(
   v.object({
+    cardId: v.string(),
     meldId: v.string(),
     mode: v.literal("add"),
   }),
   v.object({
+    cardId: v.string(),
     meldId: v.string(),
     mode: v.literal("replaceWild"),
     replaceWildCardId: v.string(),

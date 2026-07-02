@@ -157,6 +157,85 @@ describe("wild relocation", () => {
           seatIndex: 0,
           playerPhase: "opened",
           openedThisTurn: false,
+          hand: [makeCard("hearts", "8"), makeCard("clubs", "9")],
+        },
+        {
+          id: ownerId,
+          seatIndex: 1,
+          playerPhase: "opened",
+          openedThisTurn: false,
+          hand: [],
+        },
+      ],
+      melds: [
+        tableMeld(
+          "run-a",
+          ownerId,
+          "run",
+          [makeCard("hearts", "7"), joker, makeCard("hearts", "9")],
+          [{ cardId: joker.id, asRank: "8" }],
+        ),
+        tableMeld("run-b", ownerId, "run", [
+          makeCard("hearts", "3"),
+          makeCard("hearts", "4"),
+          makeCard("hearts", "5"),
+        ]),
+      ],
+    };
+
+    const withoutRelocation = applyAction(
+      state,
+      {
+        kind: "layOff",
+        targetMeldId: "run-a",
+        card: makeCard("hearts", "8"),
+        replaceWildCardId: joker.id,
+      },
+      activeId,
+    );
+    expect(withoutRelocation.error).toBe("Wild replacement requires relocation");
+
+    const relocated = applyAction(
+      state,
+      {
+        kind: "layOff",
+        targetMeldId: "run-a",
+        card: makeCard("hearts", "8"),
+        replaceWildCardId: joker.id,
+        relocation: {
+          destinationMeldId: "run-b",
+          wildDeclaration: { cardId: joker.id, asRank: "6" },
+        },
+      },
+      activeId,
+    );
+    expect(relocated.error).toBeUndefined();
+    expect(relocated.state.melds.find((meld) => meld.id === "run-a")?.cards).toEqual([
+      makeCard("hearts", "7"),
+      makeCard("hearts", "8"),
+      makeCard("hearts", "9"),
+    ]);
+    expect(
+      relocated.state.melds.find((meld) => meld.id === "run-b")?.cards.some(
+        (card) => card.id === joker.id,
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects wild replacement on sets", () => {
+    const ownerId = "player-1";
+    const activeId = "player-0";
+    const joker = makeCard("joker", "JOKER", 0);
+    const state: GameState = {
+      ...startRound(createGame({ players: seatedPlayers(2) }), { seed: 1 }),
+      turnPhase: "discard",
+      activeSeatIndex: 0,
+      players: [
+        {
+          id: activeId,
+          seatIndex: 0,
+          playerPhase: "opened",
+          openedThisTurn: false,
           hand: [makeCard("hearts", "7"), makeCard("clubs", "9")],
         },
         {
@@ -183,19 +262,7 @@ describe("wild relocation", () => {
       ],
     };
 
-    const withoutRelocation = applyAction(
-      state,
-      {
-        kind: "layOff",
-        targetMeldId: "set-a",
-        card: makeCard("hearts", "7"),
-        replaceWildCardId: joker.id,
-      },
-      activeId,
-    );
-    expect(withoutRelocation.error).toBe("Wild replacement requires relocation");
-
-    const relocated = applyAction(
+    const result = applyAction(
       state,
       {
         kind: "layOff",
@@ -206,17 +273,7 @@ describe("wild relocation", () => {
       },
       activeId,
     );
-    expect(relocated.error).toBeUndefined();
-    expect(relocated.state.melds.find((meld) => meld.id === "set-a")?.cards).toEqual([
-      makeCard("diamonds", "7"),
-      makeCard("clubs", "7"),
-      makeCard("hearts", "7"),
-    ]);
-    expect(
-      relocated.state.melds.find((meld) => meld.id === "set-b")?.cards.some(
-        (card) => card.id === joker.id,
-      ),
-    ).toBe(true);
+    expect(result.error).toBe("Wild replacement is not allowed on sets");
   });
 
   it("waives adjacency when relocating a wild onto an existing wild", () => {
@@ -246,18 +303,18 @@ describe("wild relocation", () => {
       ],
       melds: [
         tableMeld(
-          "set-a",
+          "run-a",
           ownerId,
-          "set",
-          [makeCard("diamonds", "9"), makeCard("clubs", "9"), wildA],
+          "run",
+          [makeCard("hearts", "8"), wildA, makeCard("hearts", "10")],
           [{ cardId: wildA.id, asRank: "9" }],
         ),
         tableMeld(
-          "set-b",
+          "run-b",
           ownerId,
-          "set",
-          [makeCard("spades", "9"), makeCard("clubs", "9"), wildB],
-          [{ cardId: wildB.id, asRank: "9" }],
+          "run",
+          [makeCard("hearts", "6"), makeCard("hearts", "7"), wildB],
+          [{ cardId: wildB.id, asRank: "8" }],
         ),
       ],
     };
@@ -266,11 +323,11 @@ describe("wild relocation", () => {
       state,
       {
         kind: "layOff",
-        targetMeldId: "set-a",
+        targetMeldId: "run-a",
         card: makeCard("hearts", "9"),
         replaceWildCardId: wildA.id,
         relocation: {
-          destinationMeldId: "set-b",
+          destinationMeldId: "run-b",
           wildDeclaration: { cardId: wildA.id, asRank: "9" },
         },
       },
@@ -278,7 +335,7 @@ describe("wild relocation", () => {
     );
 
     expect(result.error).toBeUndefined();
-    const destination = result.state.melds.find((meld) => meld.id === "set-b");
+    const destination = result.state.melds.find((meld) => meld.id === "run-b");
     expect(destination?.cards.filter((card) => card.rank === "JOKER")).toHaveLength(2);
   });
 });

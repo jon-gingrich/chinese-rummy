@@ -102,10 +102,12 @@ export type WildRelocation = {
 
 export type LayOffTarget =
   | {
+      cardId: string;
       meldId: string;
       mode: "add";
     }
   | {
+      cardId: string;
       meldId: string;
       mode: "replaceWild";
       replaceWildCardId: string;

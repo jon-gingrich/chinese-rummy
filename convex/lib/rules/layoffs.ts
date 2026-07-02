@@ -1,4 +1,4 @@
-import type { Card, TableMeld, WildDeclaration } from "./types";
+import type { Card, LayOffTarget, TableMeld, WildDeclaration } from "./types";
 import {
   effectiveRankForCard,
   isWildInMeld,
@@ -17,18 +17,6 @@ export type LayOffInput = {
   replaceWildCardId?: string;
   relocation?: WildRelocation;
 };
-
-export type LayOffTarget =
-  | {
-      meldId: string;
-      mode: "add";
-    }
-  | {
-      meldId: string;
-      mode: "replaceWild";
-      replaceWildCardId: string;
-      relocationDestinations: string[];
-    };
 
 function meldById(melds: TableMeld[], meldId: string): TableMeld | undefined {
   return melds.find((meld) => meld.id === meldId);
@@ -84,6 +72,10 @@ function tryAddToRun(meld: TableMeld, card: Card): TableMeld | null {
 }
 
 function replaceableWilds(meld: TableMeld, card: Card): string[] {
+  if (meld.kind === "set") {
+    return [];
+  }
+
   if (isWildInMeld(card, [])) {
     return [];
   }
@@ -127,7 +119,7 @@ export function findLayOffTargets(
       const updated =
         meld.kind === "set" ? tryAddToSet(meld, card) : tryAddToRun(meld, card);
       if (updated) {
-        targets.push({ meldId: meld.id, mode: "add" });
+        targets.push({ cardId: card.id, meldId: meld.id, mode: "add" });
       }
 
       for (const wildCardId of replaceableWilds(meld, card)) {
@@ -136,6 +128,7 @@ export function findLayOffTargets(
           .map((entry) => entry.id);
         if (destinations.length > 0) {
           targets.push({
+            cardId: card.id,
             meldId: meld.id,
             mode: "replaceWild",
             replaceWildCardId: wildCardId,
@@ -258,6 +251,9 @@ export function applyLayOff(
   }
 
   if (input.replaceWildCardId) {
+    if (target.kind === "set") {
+      return { error: "Wild replacement is not allowed on sets" };
+    }
     if (!input.relocation) {
       return { error: "Wild replacement requires relocation" };
     }
