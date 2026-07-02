@@ -4,33 +4,12 @@ import { useMutation, useQuery } from "convex/react";
 import { useMemo, useState } from "react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
-import type { Card } from "../../convex/lib/rules/types";
-import { OpeningPanel } from "./OpeningPanel";
+import { formatCardLabel, sortHand, type HandSortMode } from "../lib/cards";
+import { CardFan } from "./CardFan";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { LayOffPanel } from "./LayOffPanel";
-
-function formatCard(card: Card): string {
-  if (card.rank === "JOKER") {
-    return "Joker";
-  }
-  const suitSymbol =
-    card.suit === "hearts"
-      ? "♥"
-      : card.suit === "diamonds"
-        ? "♦"
-        : card.suit === "clubs"
-          ? "♣"
-          : card.suit === "spades"
-            ? "♠"
-            : "";
-  return `${card.rank}${suitSymbol}`;
-}
-
-function suitColor(suit: string): string {
-  if (suit === "hearts" || suit === "diamonds") {
-    return "text-rose-300";
-  }
-  return "text-slate-100";
-}
+import { OpeningPanel } from "./OpeningPanel";
+import { RulesReference } from "./RulesReference";
 
 export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
   const viewer = useQuery(api.users.viewer);
@@ -41,12 +20,15 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
   const discard = useMutation(api.games.discard);
   const continueRound = useMutation(api.games.continueRound);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [handSortMode, setHandSortMode] = useState<HandSortMode>("suit");
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [showRules, setShowRules] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const sortedHand = useMemo(
-    () => (hand ? [...hand].sort((a, b) => a.id.localeCompare(b.id)) : []),
-    [hand],
+    () => (hand ? sortHand(hand, handSortMode) : []),
+    [hand, handSortMode],
   );
 
   const myPlayer = table?.players.find((player) => player.id === viewer?.userId);
@@ -68,6 +50,8 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
 
   const canLayOff =
     isMyTurn && table?.turnPhase === "discard" && (legalActions?.canLayOff ?? false);
+
+  const selectedCard = sortedHand.find((entry) => entry.id === selectedCardId) ?? null;
 
   async function handleDraw(source: "stock" | "discard") {
     setBusy(true);
@@ -102,8 +86,7 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
   }
 
   async function handleDiscard() {
-    const card = sortedHand.find((entry) => entry.id === selectedCardId);
-    if (!card) {
+    if (!selectedCard) {
       setStatus("Select a card to discard");
       return;
     }
@@ -111,17 +94,25 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
     setBusy(true);
     setStatus(null);
     try {
-      const result = await discard({ roomId, card });
+      const result = await discard({ roomId, card: selectedCard });
       if (result.error) {
         setStatus(result.error);
       } else {
         setSelectedCardId(null);
+        setShowDiscardConfirm(false);
       }
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Discard failed");
     } finally {
       setBusy(false);
     }
+  }
+
+  function toggleHandCard(cardId: string) {
+    if (!isMyTurn || table?.turnPhase !== "discard" || busy) {
+      return;
+    }
+    setSelectedCardId((current) => (current === cardId ? null : cardId));
   }
 
   if (
@@ -139,6 +130,27 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
 
   return (
     <div className="space-y-8">
+      <RulesReference open={showRules} onClose={() => setShowRules(false)} />
+
+      <ConfirmDialog
+        open={showDiscardConfirm}
+        title="Discard this card?"
+        message={
+          selectedCard ? (
+            <p>
+              End your turn by discarding{" "}
+              <span className="font-medium text-white">{formatCardLabel(selectedCard)}</span>.
+            </p>
+          ) : (
+            "Select a card to discard."
+          )
+        }
+        confirmLabel="Discard"
+        busy={busy}
+        onCancel={() => setShowDiscardConfirm(false)}
+        onConfirm={() => void handleDiscard()}
+      />
+
       {table.phase === "gameEnd" ? (
         <section className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-6">
           <h2 className="text-2xl font-semibold text-emerald-100">Game over</h2>
@@ -218,16 +230,25 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
                   }.`}
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="rounded-xl border border-white/10 px-4 py-3">
-              <p className="text-[var(--muted)]">Stock</p>
-              <p className="text-xl font-semibold">{table.stockCount}</p>
-            </div>
-            <div className="rounded-xl border border-white/10 px-4 py-3">
-              <p className="text-[var(--muted)]">Top discard</p>
-              <p className="text-xl font-semibold">
-                {table.topDiscard ? formatCard(table.topDiscard) : "—"}
-              </p>
+          <div className="flex flex-col items-end gap-3">
+            <button
+              type="button"
+              onClick={() => setShowRules(true)}
+              className="rounded-lg border border-white/10 px-3 py-2 text-sm hover:border-white/20"
+            >
+              Rules
+            </button>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-xl border border-white/10 px-4 py-3">
+                <p className="text-[var(--muted)]">Stock</p>
+                <p className="text-xl font-semibold">{table.stockCount}</p>
+              </div>
+              <div className="rounded-xl border border-white/10 px-4 py-3">
+                <p className="text-[var(--muted)]">Top discard</p>
+                <p className="text-xl font-semibold">
+                  {table.topDiscard ? formatCardLabel(table.topDiscard) : "—"}
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -278,7 +299,7 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
                     {owner?.displayName ?? "Player"} — {meld.kind}
                   </p>
                   <p className="text-[var(--muted)]">
-                    {meld.cards.map((card) => formatCard(card)).join(", ")}
+                    {meld.cards.map((card) => formatCardLabel(card)).join(", ")}
                   </p>
                 </div>
               );
@@ -293,6 +314,8 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
           roundNumber={table.roundNumber}
           contract={table.contract}
           hand={sortedHand}
+          sortMode={handSortMode}
+          onSortModeChange={setHandSortMode}
           onStatus={setStatus}
         />
       ) : null}
@@ -303,6 +326,8 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
           hand={sortedHand}
           targets={legalActions.layOffTargets}
           meldLabels={meldLabels}
+          sortMode={handSortMode}
+          onSortModeChange={setHandSortMode}
           onStatus={setStatus}
         />
       ) : null}
@@ -331,39 +356,37 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
               </button>
             </div>
           ) : null}
-          {isMyTurn && table.turnPhase === "discard" ? (
+          {isMyTurn && table.turnPhase === "discard" && !canOpen && !canLayOff ? (
             <button
               type="button"
               disabled={busy || !selectedCardId}
-              onClick={() => void handleDiscard()}
+              onClick={() => setShowDiscardConfirm(true)}
               className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-black disabled:opacity-50"
             >
               Discard selected
             </button>
           ) : null}
+          {isMyTurn && table.turnPhase === "discard" && (canOpen || canLayOff) ? (
+            <button
+              type="button"
+              disabled={busy || !selectedCardId}
+              onClick={() => setShowDiscardConfirm(true)}
+              className="rounded-lg border border-white/10 px-4 py-2 text-sm disabled:opacity-50"
+            >
+              Discard instead
+            </button>
+          ) : null}
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          {sortedHand.map((card) => {
-            const selected = card.id === selectedCardId;
-            const canSelect = isMyTurn && table.turnPhase === "discard";
-            return (
-              <button
-                key={card.id}
-                type="button"
-                disabled={!canSelect || busy}
-                onClick={() => setSelectedCardId(card.id)}
-                className={`min-w-14 rounded-xl border px-3 py-4 text-sm font-medium ${
-                  selected
-                    ? "border-[var(--accent)] bg-[var(--accent)]/20"
-                    : "border-white/10 bg-black/30"
-                } ${suitColor(card.suit)} disabled:cursor-default`}
-              >
-                {formatCard(card)}
-              </button>
-            );
-          })}
-        </div>
+        <CardFan
+          cards={sortedHand}
+          selectedId={selectedCardId}
+          onToggle={toggleHandCard}
+          disabled={!isMyTurn || table.turnPhase !== "discard" || busy}
+          sortMode={handSortMode}
+          onSortModeChange={setHandSortMode}
+          showSortControls={!canOpen && !canLayOff}
+        />
       </section>
       ) : null}
 

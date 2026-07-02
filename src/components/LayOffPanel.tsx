@@ -5,6 +5,8 @@ import { useMemo, useState } from "react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import type { Card, LayOffTarget, NaturalRank } from "../../convex/lib/rules/types";
+import { type HandSortMode } from "../lib/cards";
+import { CardFan } from "./CardFan";
 
 const NATURAL_RANKS: NaturalRank[] = [
   "A",
@@ -27,6 +29,8 @@ type LayOffPanelProps = {
   hand: Card[];
   targets: LayOffTarget[];
   meldLabels: Record<string, string>;
+  sortMode: HandSortMode;
+  onSortModeChange: (mode: HandSortMode) => void;
   onStatus: (message: string | null) => void;
 };
 
@@ -42,6 +46,8 @@ export function LayOffPanel({
   hand,
   targets,
   meldLabels,
+  sortMode,
+  onSortModeChange,
   onStatus,
 }: LayOffPanelProps) {
   const layOff = useMutation(api.games.layOff);
@@ -55,13 +61,6 @@ export function LayOffPanel({
     () => targets.find((target) => targetKey(target) === selectedTargetKey) ?? null,
     [selectedTargetKey, targets],
   );
-
-  const matchingTargets = useMemo(() => {
-    if (!selectedCardId) {
-      return [];
-    }
-    return targets;
-  }, [selectedCardId, targets]);
 
   async function submitLayOff() {
     const card = hand.find((entry) => entry.id === selectedCardId);
@@ -118,35 +117,29 @@ export function LayOffPanel({
       <div className="mb-4 space-y-1">
         <h3 className="text-lg font-medium">Lay off</h3>
         <p className="text-sm text-[var(--muted)]">
-          Select a card, choose a meld, then lay off.
+          Tap a card, choose a meld, then lay off.
         </p>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        {hand.map((card) => (
-          <button
-            key={card.id}
-            type="button"
-            disabled={busy}
-            onClick={() => {
-              setSelectedCardId(card.id);
-              setSelectedTargetKey(null);
-              setDestinationMeldId(null);
-            }}
-            className={`min-w-14 rounded-xl border px-3 py-3 text-sm ${
-              selectedCardId === card.id
-                ? "border-[var(--accent)] bg-[var(--accent)]/20"
-                : "border-white/10 bg-black/30"
-            }`}
-          >
-            {card.rank === "JOKER" ? "Joker" : card.rank}
-          </button>
-        ))}
-      </div>
+      <CardFan
+        cards={hand}
+        selectedId={selectedCardId}
+        onToggle={(cardId) => {
+          if (busy) {
+            return;
+          }
+          setSelectedCardId((current) => (current === cardId ? null : cardId));
+          setSelectedTargetKey(null);
+          setDestinationMeldId(null);
+        }}
+        disabled={busy}
+        sortMode={sortMode}
+        onSortModeChange={onSortModeChange}
+      />
 
       {selectedCardId ? (
         <div className="mb-4 space-y-2">
-          {matchingTargets.map((target) => (
+          {targets.map((target) => (
             <button
               key={targetKey(target)}
               type="button"

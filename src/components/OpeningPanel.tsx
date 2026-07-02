@@ -7,6 +7,9 @@ import type { Id } from "../../convex/_generated/dataModel";
 import { getContractForRound } from "../../convex/lib/rules/contracts";
 import { isJoker } from "../../convex/lib/rules/melds";
 import type { Card, NaturalRank, OpeningMeld } from "../../convex/lib/rules/types";
+import { formatCardLabel, type HandSortMode } from "../lib/cards";
+import { CardFan } from "./CardFan";
+import { ConfirmDialog } from "./ConfirmDialog";
 
 const NATURAL_RANKS: NaturalRank[] = [
   "A",
@@ -29,27 +32,25 @@ type OpeningPanelProps = {
   roundNumber: number;
   contract: string;
   hand: Card[];
+  sortMode: HandSortMode;
+  onSortModeChange: (mode: HandSortMode) => void;
   onStatus: (message: string | null) => void;
 };
-
-function formatCard(card: Card): string {
-  if (card.rank === "JOKER") {
-    return "Joker";
-  }
-  return card.rank;
-}
 
 export function OpeningPanel({
   roomId,
   roundNumber,
   contract,
   hand,
+  sortMode,
+  onSortModeChange,
   onStatus,
 }: OpeningPanelProps) {
   const open = useMutation(api.games.open);
   const [pendingMelds, setPendingMelds] = useState<OpeningMeld[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [wildRanks, setWildRanks] = useState<Record<string, NaturalRank>>({});
+  const [showConfirm, setShowConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const requirements = useMemo(() => getContractForRound(roundNumber), [roundNumber]);
@@ -59,7 +60,7 @@ export function OpeningPanel({
   const selectedCards = availableHand.filter((card) => selectedIds.includes(card.id));
 
   function toggleCard(cardId: string) {
-    if (!nextRequirement) {
+    if (!nextRequirement || busy) {
       return;
     }
     setSelectedIds((current) => {
@@ -130,6 +131,7 @@ export function OpeningPanel({
         setPendingMelds([]);
         setSelectedIds([]);
         setWildRanks({});
+        setShowConfirm(false);
       }
     } catch (error) {
       onStatus(error instanceof Error ? error.message : "Opening failed");
@@ -140,12 +142,34 @@ export function OpeningPanel({
 
   return (
     <section className="rounded-2xl border border-white/10 bg-[var(--card)] p-6">
+      <ConfirmDialog
+        open={showConfirm}
+        title="Submit opening melds?"
+        message={
+          <div className="space-y-2">
+            <p>Lay down your full contract in one opening turn:</p>
+            <ul className="list-disc space-y-1 pl-5">
+              {pendingMelds.map((meld, index) => (
+                <li key={`${meld.kind}-${index}`}>
+                  {meld.kind} {index + 1}:{" "}
+                  {meld.cards.map((card) => formatCardLabel(card)).join(", ")}
+                </li>
+              ))}
+            </ul>
+          </div>
+        }
+        confirmLabel="Lay contract"
+        busy={busy}
+        onCancel={() => setShowConfirm(false)}
+        onConfirm={() => void submitOpening()}
+      />
+
       <div className="mb-4 space-y-1">
         <h3 className="text-lg font-medium">Opening turn</h3>
         <p className="text-sm text-[var(--muted)]">Contract: {contract}</p>
         <p className="text-sm text-[var(--muted)]">
           {nextRequirement
-            ? `Lay the next ${nextRequirement.kind} of ${nextRequirement.size}.`
+            ? `Tap ${nextRequirement.size} cards for the next ${nextRequirement.kind}.`
             : "All contract melds are ready to submit."}
         </p>
       </div>
@@ -158,7 +182,7 @@ export function OpeningPanel({
                 {meld.kind} {index + 1}
               </p>
               <p className="text-[var(--muted)]">
-                {meld.cards.map((card) => formatCard(card)).join(", ")}
+                {meld.cards.map((card) => formatCardLabel(card)).join(", ")}
               </p>
             </div>
           ))}
@@ -167,26 +191,14 @@ export function OpeningPanel({
 
       {nextRequirement ? (
         <>
-          <div className="mb-4 flex flex-wrap gap-2">
-            {availableHand.map((card) => {
-              const selected = selectedIds.includes(card.id);
-              return (
-                <button
-                  key={card.id}
-                  type="button"
-                  disabled={busy}
-                  onClick={() => toggleCard(card.id)}
-                  className={`min-w-14 rounded-xl border px-3 py-3 text-sm ${
-                    selected
-                      ? "border-[var(--accent)] bg-[var(--accent)]/20"
-                      : "border-white/10 bg-black/30"
-                  }`}
-                >
-                  {formatCard(card)}
-                </button>
-              );
-            })}
-          </div>
+          <CardFan
+            cards={availableHand}
+            selectedIds={selectedIds}
+            onToggle={toggleCard}
+            disabled={busy}
+            sortMode={sortMode}
+            onSortModeChange={onSortModeChange}
+          />
 
           {selectedCards.some((card) => isJoker(card) || card.rank === "2") ? (
             <div className="mb-4 space-y-2">
@@ -194,7 +206,7 @@ export function OpeningPanel({
                 .filter((card) => isJoker(card) || card.rank === "2")
                 .map((card) => (
                   <label key={card.id} className="flex items-center gap-3 text-sm">
-                    <span className="min-w-16">{formatCard(card)} as</span>
+                    <span className="min-w-16">{formatCardLabel(card)} as</span>
                     <select
                       value={wildRanks[card.id] ?? (card.rank === "2" ? "2" : "")}
                       onChange={(event) =>
@@ -233,7 +245,7 @@ export function OpeningPanel({
         <button
           type="button"
           disabled={busy}
-          onClick={() => void submitOpening()}
+          onClick={() => setShowConfirm(true)}
           className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-black disabled:opacity-50"
         >
           Submit opening

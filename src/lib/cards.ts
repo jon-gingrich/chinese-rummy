@@ -1,0 +1,96 @@
+import type { Card, Rank, Suit } from "../../convex/lib/rules/types";
+
+export type HandSortMode = "suit" | "rank";
+
+const SUIT_ORDER: Record<Suit, number> = {
+  clubs: 0,
+  diamonds: 1,
+  hearts: 2,
+  spades: 3,
+  joker: 4,
+};
+
+const RANK_ORDER: Record<Rank, number> = {
+  A: 0,
+  "2": 1,
+  "3": 2,
+  "4": 3,
+  "5": 4,
+  "6": 5,
+  "7": 6,
+  "8": 7,
+  "9": 8,
+  "10": 9,
+  J: 10,
+  Q: 11,
+  K: 12,
+  JOKER: 13,
+};
+
+export function formatCardLabel(card: Card): string {
+  if (card.rank === "JOKER") {
+    return "Joker";
+  }
+  const suitSymbol =
+    card.suit === "hearts"
+      ? "♥"
+      : card.suit === "diamonds"
+        ? "♦"
+        : card.suit === "clubs"
+          ? "♣"
+          : card.suit === "spades"
+            ? "♠"
+            : "";
+  return `${card.rank}${suitSymbol}`;
+}
+
+export function suitColorClass(suit: string): string {
+  if (suit === "hearts" || suit === "diamonds") {
+    return "text-rose-300";
+  }
+  return "text-slate-100";
+}
+
+function compareBySuit(a: Card, b: Card): number {
+  const suitDiff = SUIT_ORDER[a.suit] - SUIT_ORDER[b.suit];
+  if (suitDiff !== 0) {
+    return suitDiff;
+  }
+  const rankDiff = RANK_ORDER[a.rank] - RANK_ORDER[b.rank];
+  if (rankDiff !== 0) {
+    return rankDiff;
+  }
+  return a.deckIndex - b.deckIndex;
+}
+
+function compareByRank(a: Card, b: Card): number {
+  const rankDiff = RANK_ORDER[a.rank] - RANK_ORDER[b.rank];
+  if (rankDiff !== 0) {
+    return rankDiff;
+  }
+  const suitDiff = SUIT_ORDER[a.suit] - SUIT_ORDER[b.suit];
+  if (suitDiff !== 0) {
+    return suitDiff;
+  }
+  return a.deckIndex - b.deckIndex;
+}
+
+export function sortHand(cards: Card[], mode: HandSortMode): Card[] {
+  const compare = mode === "suit" ? compareBySuit : compareByRank;
+  return [...cards].sort(compare);
+}
+
+export function fanRotation(index: number, total: number): number {
+  if (total <= 1) {
+    return 0;
+  }
+  const spread = Math.min(total * 7, 48);
+  const start = -spread / 2;
+  const step = spread / (total - 1);
+  return start + index * step;
+}
+
+export function fanTranslateY(index: number, total: number): number {
+  const rotation = Math.abs(fanRotation(index, total));
+  return rotation * 0.35;
+}
