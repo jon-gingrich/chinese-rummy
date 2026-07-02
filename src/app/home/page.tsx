@@ -2,8 +2,49 @@
 
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { api } from "../../../convex/_generated/api";
+
+function RoomActions() {
+  const router = useRouter();
+  const createRoom = useMutation(api.rooms.createRoom);
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleCreateRoom() {
+    setCreating(true);
+    setError(null);
+    try {
+      const roomId = await createRoom({});
+      router.push(`/room/${roomId}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not create room");
+      setCreating(false);
+    }
+  }
+
+  return (
+    <div className="mt-4 flex flex-wrap gap-3">
+      <button
+        type="button"
+        onClick={() => void handleCreateRoom()}
+        disabled={creating}
+        className="rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-black disabled:opacity-60"
+      >
+        {creating ? "Creating…" : "Create room"}
+      </button>
+      <Link
+        href="/join"
+        className="rounded-xl border border-white/10 px-4 py-3 text-sm font-medium hover:border-white/20"
+      >
+        Join with code
+      </Link>
+      {error ? <p className="w-full text-sm text-red-300">{error}</p> : null}
+    </div>
+  );
+}
 
 export default function HomePage() {
   const viewer = useQuery(api.users.viewer);
@@ -103,8 +144,12 @@ export default function HomePage() {
         {status ? <p className="mt-3 text-sm text-[var(--muted)]">{status}</p> : null}
       </section>
 
-      <section className="rounded-2xl border border-dashed border-white/10 p-6 text-sm text-[var(--muted)]">
-        Rooms and gameplay arrive in the next slices. Your account shell is ready.
+      <section className="rounded-2xl border border-white/10 bg-[var(--card)] p-6">
+        <h2 className="text-lg font-medium">Rooms</h2>
+        <p className="mt-1 text-sm text-[var(--muted)]">
+          Create a table for your family or join with a room code.
+        </p>
+        <RoomActions />
       </section>
     </main>
   );
