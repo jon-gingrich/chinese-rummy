@@ -7,10 +7,13 @@ import {
   buildTableView,
   getGameForRoom,
   handForPlayer,
+  markGameFinished,
+  touchGameParticipants,
 } from "./lib/games";
 import { getCurrentUser } from "./lib/auth";
 import { applyAction, continueToNextRound, legalActions } from "./lib/rules";
 import type { GameState } from "./lib/rules";
+import { formatContract } from "./lib/rules/contracts";
 import {
   actionResultValidator,
   cardValidator,
@@ -19,6 +22,17 @@ import {
   tableViewValidator,
   wildRelocationValidator,
 } from "./lib/rules/validators";
+
+const myGameSummaryValidator = v.object({
+  roomId: v.id("rooms"),
+  roomCode: v.string(),
+  gameId: v.id("games"),
+  roundNumber: v.number(),
+  contract: v.string(),
+  phase: v.union(v.literal("playing"), v.literal("roundEnd"), v.literal("gameEnd")),
+  playerCount: v.number(),
+  updatedAt: v.number(),
+});
 
 async function persistAndRespond(
   ctx: MutationCtx,
@@ -38,6 +52,15 @@ async function persistAndRespond(
       state,
       updatedAt: now,
     });
+    await touchGameParticipants(ctx, gameId, now);
+
+    if (state.phase === "gameEnd") {
+      await markGameFinished(ctx, {
+        gameId,
+        roomId: game.roomId,
+        now,
+      });
+    }
   }
 
   const table = await buildTableView(ctx, { ...game, state }, state);
@@ -48,6 +71,47 @@ async function persistAndRespond(
     error,
   };
 }
+
+export const getMyGames = query({
+  args: {},
+  returns: v.array(myGameSummaryValidator),
+  handler: async (ctx) => {
+    const user = await getCurrentUser(ctx);
+    const memberships = await ctx.db
+      .query("gameParticipants")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+
+    const summaries = await Promise.all(
+      memberships
+        .filter((membership) => membership.status === "playing")
+        .map(async (membership) => {
+          const game = await ctx.db.get("games", membership.gameId);
+          if (!game) {
+            return null;
+          }
+          const state = game.state as GameState;
+          if (state.phase === "gameEnd") {
+            return null;
+          }
+          return {
+            roomId: membership.roomId,
+            roomCode: membership.roomCode,
+            gameId: membership.gameId,
+            roundNumber: state.roundNumber,
+            contract: formatContract(state.roundNumber),
+            phase: state.phase,
+            playerCount: state.players.length,
+            updatedAt: game.updatedAt,
+          };
+        }),
+    );
+
+    return summaries
+      .filter((summary): summary is NonNullable<typeof summary> => summary !== null)
+      .sort((left, right) => right.updatedAt - left.updatedAt);
+  },
+});
 
 export const getGame = query({
   args: { roomId: v.id("rooms") },

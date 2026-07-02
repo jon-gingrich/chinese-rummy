@@ -8,7 +8,7 @@ import {
   findPlayerSeat,
   isSeatOpen,
 } from "./lib/rooms";
-import { seatedPlayersFromRoom } from "./lib/games";
+import { seatedPlayersFromRoom, insertGameParticipants } from "./lib/games";
 import { createGame, startRound } from "./lib/rules";
 import type { Id } from "./_generated/dataModel";
 
@@ -256,6 +256,15 @@ export const startGame = mutation({
       status: "playing",
       gameId,
     });
+
+    await insertGameParticipants(ctx, {
+      gameId,
+      roomId: room._id,
+      roomCode: room.code,
+      userIds: players.map((player) => player.id as Id<"users">),
+      now,
+    });
+
     return null;
   },
 });

@@ -5,6 +5,62 @@ import { formatContract } from "./rules/contracts";
 import type { GameState } from "./rules";
 import type { Card } from "./rules/types";
 
+export async function insertGameParticipants(
+  ctx: MutationCtx,
+  args: {
+    gameId: Id<"games">;
+    roomId: Id<"rooms">;
+    roomCode: string;
+    userIds: Id<"users">[];
+    now: number;
+  },
+) {
+  for (const userId of args.userIds) {
+    await ctx.db.insert("gameParticipants", {
+      userId,
+      gameId: args.gameId,
+      roomId: args.roomId,
+      roomCode: args.roomCode,
+      status: "playing",
+      updatedAt: args.now,
+    });
+  }
+}
+
+export async function markGameFinished(
+  ctx: MutationCtx,
+  args: { gameId: Id<"games">; roomId: Id<"rooms">; now: number },
+) {
+  await ctx.db.patch("rooms", args.roomId, { status: "finished" });
+
+  const participants = await ctx.db
+    .query("gameParticipants")
+    .withIndex("by_game", (q) => q.eq("gameId", args.gameId))
+    .collect();
+
+  for (const participant of participants) {
+    await ctx.db.patch("gameParticipants", participant._id, {
+      status: "finished",
+      updatedAt: args.now,
+    });
+  }
+}
+
+export async function touchGameParticipants(
+  ctx: MutationCtx,
+  gameId: Id<"games">,
+  now: number,
+) {
+  const participants = await ctx.db
+    .query("gameParticipants")
+    .withIndex("by_game", (q) => q.eq("gameId", gameId))
+    .collect();
+
+  for (const participant of participants) {
+    await ctx.db.patch("gameParticipants", participant._id, { updatedAt: now });
+  }
+}
+
 export function seatedPlayersFromRoom(
   room: Doc<"rooms">,
 ): Array<{ id: string; seatIndex: number }> {

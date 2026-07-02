@@ -43,4 +43,14 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_room", ["roomId"]),
+  gameParticipants: defineTable({
+    userId: v.id("users"),
+    gameId: v.id("games"),
+    roomId: v.id("rooms"),
+    roomCode: v.string(),
+    status: v.union(v.literal("playing"), v.literal("finished")),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_game", ["gameId"]),
 });

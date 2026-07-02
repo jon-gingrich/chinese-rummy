@@ -211,6 +211,63 @@ describe("games.open", () => {
   });
 });
 
+describe("games.getMyGames", () => {
+  it("returns in-progress games for seated players after startGame", async () => {
+    const { asHost, asGuest, roomId } = await startTwoPlayerGame();
+
+    const hostGames = await asHost.query(api.games.getMyGames, {});
+    const guestGames = await asGuest.query(api.games.getMyGames, {});
+
+    expect(hostGames).toHaveLength(1);
+    expect(guestGames).toHaveLength(1);
+    expect(hostGames[0]).toMatchObject({
+      roomId,
+      roundNumber: 1,
+      contract: "set of 3, set of 3",
+      playerCount: 2,
+      phase: "playing",
+    });
+    expect(hostGames[0]?.roomCode).toMatch(/^[A-Z0-9]{6}$/);
+  });
+
+  it("excludes finished games from the list", async () => {
+    const { asHost, roomId, t } = await startTwoPlayerGame();
+
+    await t.run(async (ctx) => {
+      const room = await ctx.db.get("rooms", roomId);
+      const game = await ctx.db.get("games", room!.gameId!);
+      await ctx.db.patch("games", game!._id, {
+        state: { ...game!.state, phase: "gameEnd" },
+      });
+      await ctx.db.patch("rooms", roomId, { status: "finished" });
+      const participants = await ctx.db
+        .query("gameParticipants")
+        .withIndex("by_game", (q) => q.eq("gameId", game!._id))
+        .collect();
+      for (const participant of participants) {
+        await ctx.db.patch("gameParticipants", participant._id, { status: "finished" });
+      }
+    });
+
+    const games = await asHost.query(api.games.getMyGames, {});
+    expect(games).toHaveLength(0);
+  });
+
+  it("restores table state when rejoining via room route", async () => {
+    const { asHost, roomId } = await startTwoPlayerGame();
+
+    const listed = await asHost.query(api.games.getMyGames, {});
+    expect(listed).toHaveLength(1);
+
+    const table = await asHost.query(api.games.getGame, { roomId });
+    const hand = await asHost.query(api.games.getMyHand, { roomId });
+
+    expect(table).not.toBeNull();
+    expect(table?.roundNumber).toBe(listed[0]?.roundNumber);
+    expect(hand).toHaveLength(13);
+  });
+});
+
 describe("games.layOff", () => {
   it("lets an opened player lay off on another meld", async () => {
     const { asHost, asGuest, roomId, t } = await startTwoPlayerGame();

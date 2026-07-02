@@ -7,6 +7,50 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { api } from "../../../convex/_generated/api";
 
+function MyGamesList() {
+  const router = useRouter();
+  const myGames = useQuery(api.games.getMyGames);
+
+  if (myGames === undefined) {
+    return <p className="mt-4 text-sm text-[var(--muted)]">Loading your games…</p>;
+  }
+
+  if (myGames.length === 0) {
+    return (
+      <p className="mt-4 text-sm text-[var(--muted)]">No games in progress.</p>
+    );
+  }
+
+  return (
+    <ul className="mt-4 space-y-3">
+      {myGames.map((game) => (
+        <li
+          key={game.gameId}
+          className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-black/20 px-4 py-3"
+        >
+          <div className="min-w-0">
+            <p className="font-medium tracking-wide">{game.roomCode}</p>
+            <p className="text-sm text-[var(--muted)]">
+              Round {game.roundNumber} · {game.contract}
+            </p>
+            <p className="text-xs text-[var(--muted)]">
+              {game.playerCount} players
+              {game.phase === "roundEnd" ? " · between rounds" : null}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => router.push(`/room/${game.roomId}`)}
+            className="shrink-0 rounded-lg bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-black"
+          >
+            Resume
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function RoomActions() {
   const router = useRouter();
   const createRoom = useMutation(api.rooms.createRoom);
@@ -142,6 +186,14 @@ export default function HomePage() {
           </button>
         </form>
         {status ? <p className="mt-3 text-sm text-[var(--muted)]">{status}</p> : null}
+      </section>
+
+      <section className="rounded-2xl border border-white/10 bg-[var(--card)] p-6">
+        <h2 className="text-lg font-medium">My games</h2>
+        <p className="mt-1 text-sm text-[var(--muted)]">
+          Resume a game you left — your seat, hand, and scores are saved.
+        </p>
+        <MyGamesList />
       </section>
 
       <section className="rounded-2xl border border-white/10 bg-[var(--card)] p-6">
