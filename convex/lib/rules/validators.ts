@@ -25,11 +25,46 @@ export const rankValidator = v.union(
   v.literal("JOKER"),
 );
 
+export const naturalRankValidator = v.union(
+  v.literal("A"),
+  v.literal("2"),
+  v.literal("3"),
+  v.literal("4"),
+  v.literal("5"),
+  v.literal("6"),
+  v.literal("7"),
+  v.literal("8"),
+  v.literal("9"),
+  v.literal("10"),
+  v.literal("J"),
+  v.literal("Q"),
+  v.literal("K"),
+);
+
 export const cardValidator = v.object({
   id: v.string(),
   suit: suitValidator,
   rank: rankValidator,
   deckIndex: v.union(v.literal(0), v.literal(1)),
+});
+
+export const wildDeclarationValidator = v.object({
+  cardId: v.string(),
+  asRank: naturalRankValidator,
+});
+
+export const openingMeldValidator = v.object({
+  kind: v.union(v.literal("set"), v.literal("run")),
+  cards: v.array(cardValidator),
+  wildDeclarations: v.array(wildDeclarationValidator),
+});
+
+export const tableMeldValidator = v.object({
+  id: v.string(),
+  ownerId: v.string(),
+  kind: v.union(v.literal("set"), v.literal("run")),
+  cards: v.array(cardValidator),
+  wildDeclarations: v.array(wildDeclarationValidator),
 });
 
 export const playerStateValidator = v.object({
@@ -49,18 +84,14 @@ export const gameStateValidator = v.object({
   turnPhase: v.union(v.literal("draw"), v.literal("discard")),
   stock: v.array(cardValidator),
   discard: v.array(cardValidator),
-  melds: v.array(
-    v.object({
-      ownerId: v.string(),
-      cards: v.array(cardValidator),
-    }),
-  ),
+  melds: v.array(tableMeldValidator),
   cumulativeScores: v.array(v.number()),
 });
 
 export const legalActionsValidator = v.object({
   canDrawFromStock: v.boolean(),
   canDrawFromDiscard: v.boolean(),
+  canOpen: v.boolean(),
   canDiscard: v.boolean(),
   discardableCards: v.array(cardValidator),
 });
@@ -79,6 +110,7 @@ export const tableViewValidator = v.object({
   _id: v.id("games"),
   roomId: v.id("rooms"),
   roundNumber: v.number(),
+  contract: v.string(),
   phase: v.union(v.literal("playing"), v.literal("roundEnd"), v.literal("gameEnd")),
   turnPhase: v.union(v.literal("draw"), v.literal("discard")),
   activeSeatIndex: v.number(),
@@ -86,6 +118,7 @@ export const tableViewValidator = v.object({
   topDiscard: v.union(cardValidator, v.null()),
   stockCount: v.number(),
   players: v.array(tablePlayerValidator),
+  melds: v.array(tableMeldValidator),
   cumulativeScores: v.array(v.number()),
 });
 

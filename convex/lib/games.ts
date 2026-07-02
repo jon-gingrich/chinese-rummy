@@ -1,6 +1,7 @@
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { playerDisplayName } from "./auth";
+import { formatContract } from "./rules/contracts";
 import type { GameState } from "./rules";
 import type { Card } from "./rules/types";
 
@@ -57,6 +58,7 @@ export async function buildTableView(
     _id: game._id,
     roomId: game.roomId,
     roundNumber: state.roundNumber,
+    contract: formatContract(state.roundNumber),
     phase: state.phase,
     turnPhase: state.turnPhase,
     activeSeatIndex: state.activeSeatIndex,
@@ -64,6 +66,7 @@ export async function buildTableView(
     topDiscard: state.discard[state.discard.length - 1] ?? null,
     stockCount: state.stock.length,
     players,
+    melds: state.melds,
     cumulativeScores: state.cumulativeScores,
   };
 }

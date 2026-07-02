@@ -4,12 +4,8 @@ import { useMutation, useQuery } from "convex/react";
 import { useMemo, useState } from "react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
-
-type Card = {
-  id: string;
-  suit: string;
-  rank: string;
-};
+import type { Card } from "../../convex/lib/rules/types";
+import { OpeningPanel } from "./OpeningPanel";
 
 function formatCard(card: Card): string {
   if (card.rank === "JOKER") {
@@ -53,6 +49,11 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
 
   const myPlayer = table?.players.find((player) => player.id === viewer?.userId);
   const isMyTurn = myPlayer?.isActive ?? false;
+  const canOpen =
+    isMyTurn &&
+    table?.turnPhase === "discard" &&
+    myPlayer?.playerPhase === "notOpened" &&
+    legalActions?.canOpen;
 
   async function handleDraw(source: "stock" | "discard") {
     setBusy(true);
@@ -116,11 +117,14 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
               Round {table.roundNumber}
             </p>
             <h2 className="text-2xl font-semibold">Table</h2>
+            <p className="mt-1 text-sm text-[var(--muted)]">Contract: {table.contract}</p>
             <p className="mt-1 text-sm text-[var(--muted)]">
               {isMyTurn
                 ? table.turnPhase === "draw"
                   ? "Your turn — draw a card."
-                  : "Your turn — discard a card."
+                  : myPlayer?.playerPhase === "notOpened"
+                    ? "Your turn — open or discard."
+                    : "Your turn — discard a card."
                 : `Waiting for ${
                     table.players.find((player) => player.isActive)?.displayName ??
                     "next player"
@@ -159,6 +163,9 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
               </div>
               <div className="text-right text-sm">
                 <p>{player.handSize} cards</p>
+                {player.playerPhase === "opened" ? (
+                  <p className="text-emerald-200">Opened</p>
+                ) : null}
                 {player.isDealer ? (
                   <p className="text-[var(--muted)]">Dealer</p>
                 ) : null}
@@ -170,6 +177,37 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
           </div>
         ))}
       </section>
+
+      {table.melds.length > 0 ? (
+        <section className="rounded-2xl border border-white/10 bg-[var(--card)] p-6">
+          <h3 className="mb-4 text-lg font-medium">Table melds</h3>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {table.melds.map((meld) => {
+              const owner = table.players.find((player) => player.id === meld.ownerId);
+              return (
+                <div key={meld.id} className="rounded-xl border border-white/10 px-4 py-3 text-sm">
+                  <p className="font-medium capitalize">
+                    {owner?.displayName ?? "Player"} — {meld.kind}
+                  </p>
+                  <p className="text-[var(--muted)]">
+                    {meld.cards.map((card) => formatCard(card)).join(", ")}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+
+      {canOpen ? (
+        <OpeningPanel
+          roomId={roomId}
+          roundNumber={table.roundNumber}
+          contract={table.contract}
+          hand={sortedHand}
+          onStatus={setStatus}
+        />
+      ) : null}
 
       <section className="rounded-2xl border border-white/10 bg-[var(--card)] p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">

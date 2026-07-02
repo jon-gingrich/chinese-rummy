@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { api } from "../../convex/_generated/api";
+import { makeCard } from "../../convex/lib/rules/melds";
 import { createTestContext, withSeededPlayer } from "./helpers";
 
 async function startTwoPlayerGame() {
@@ -38,6 +39,7 @@ describe("games after startGame", () => {
     const table = await asHost.query(api.games.getGame, { roomId });
     expect(table).not.toBeNull();
     expect(table?.roundNumber).toBe(1);
+    expect(table?.contract).toBe("set of 3, set of 3");
     expect(table?.players).toHaveLength(2);
     expect(table?.players.every((player) => player.handSize === 13)).toBe(true);
   });
@@ -101,5 +103,110 @@ describe("games.draw and games.discard", () => {
       source: "stock",
     });
     expect(result.error).toBe("Not your turn");
+  });
+});
+
+describe("games.open", () => {
+  it("accepts a valid opening and marks the player opened", async () => {
+    const { asHost, asGuest, roomId, t } = await startTwoPlayerGame();
+    const tableBefore = await asHost.query(api.games.getGame, { roomId });
+    const activePlayer = tableBefore!.players.find((player) => player.isActive)!;
+    const activeClient = activePlayer.displayName === "Host" ? asHost : asGuest;
+
+    await t.run(async (ctx) => {
+      const room = await ctx.db.get("rooms", roomId);
+      const game = await ctx.db.get("games", room!.gameId!);
+      const state = structuredClone(game!.state);
+      const activeIndex = state.players.findIndex(
+        (player: { id: string }) => player.id === activePlayer.id,
+      );
+      const openingCards = [
+        makeCard("hearts", "7"),
+        makeCard("spades", "7"),
+        makeCard("clubs", "7"),
+        makeCard("diamonds", "8"),
+        makeCard("hearts", "8"),
+        makeCard("spades", "8"),
+      ];
+      state.turnPhase = "discard";
+      state.players[activeIndex] = {
+        ...state.players[activeIndex],
+        hand: [...openingCards, makeCard("clubs", "9")],
+      };
+      await ctx.db.patch("games", game!._id, { state });
+    });
+
+    const result = await activeClient.mutation(api.games.open, {
+      roomId,
+      melds: [
+        {
+          kind: "set",
+          cards: [
+            makeCard("hearts", "7"),
+            makeCard("spades", "7"),
+            makeCard("clubs", "7"),
+          ],
+          wildDeclarations: [],
+        },
+        {
+          kind: "set",
+          cards: [
+            makeCard("diamonds", "8"),
+            makeCard("hearts", "8"),
+            makeCard("spades", "8"),
+          ],
+          wildDeclarations: [],
+        },
+      ],
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(result.table.melds).toHaveLength(2);
+    expect(
+      result.table.players.find((player) => player.id === activePlayer.id)?.playerPhase,
+    ).toBe("opened");
+  });
+
+  it("rejects partial openings", async () => {
+    const { asHost, asGuest, roomId, t } = await startTwoPlayerGame();
+    const tableBefore = await asHost.query(api.games.getGame, { roomId });
+    const activePlayer = tableBefore!.players.find((player) => player.isActive)!;
+    const activeClient = activePlayer.displayName === "Host" ? asHost : asGuest;
+
+    await t.run(async (ctx) => {
+      const room = await ctx.db.get("rooms", roomId);
+      const game = await ctx.db.get("games", room!.gameId!);
+      const state = structuredClone(game!.state);
+      const activeIndex = state.players.findIndex(
+        (player: { id: string }) => player.id === activePlayer.id,
+      );
+      state.turnPhase = "discard";
+      state.players[activeIndex] = {
+        ...state.players[activeIndex],
+        hand: [
+          makeCard("hearts", "7"),
+          makeCard("spades", "7"),
+          makeCard("clubs", "7"),
+        ],
+      };
+      await ctx.db.patch("games", game!._id, { state });
+    });
+
+    const result = await activeClient.mutation(api.games.open, {
+      roomId,
+      melds: [
+        {
+          kind: "set",
+          cards: [
+            makeCard("hearts", "7"),
+            makeCard("spades", "7"),
+            makeCard("clubs", "7"),
+          ],
+          wildDeclarations: [],
+        },
+      ],
+    });
+
+    expect(result.error).toBe("Opening melds do not match the round contract");
   });
 });

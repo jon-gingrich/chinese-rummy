@@ -15,6 +15,7 @@ import {
   actionResultValidator,
   cardValidator,
   legalActionsValidator,
+  openingMeldValidator,
   tableViewValidator,
 } from "./lib/rules/validators";
 
@@ -148,6 +149,30 @@ export const discard = mutation({
     assertPlayerInGame(state, user._id);
 
     const result = applyAction(state, { kind: "discard", card: args.card }, user._id);
+
+    return await persistAndRespond(
+      ctx,
+      game._id,
+      result.state,
+      user._id,
+      result.error,
+    );
+  },
+});
+
+export const open = mutation({
+  args: {
+    roomId: v.id("rooms"),
+    melds: v.array(openingMeldValidator),
+  },
+  returns: actionResultValidator,
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    const { game } = await getGameForRoom(ctx, args.roomId);
+    const state = game.state as GameState;
+    assertPlayerInGame(state, user._id);
+
+    const result = applyAction(state, { kind: "open", melds: args.melds }, user._id);
 
     return await persistAndRespond(
       ctx,

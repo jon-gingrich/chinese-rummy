@@ -19,11 +19,18 @@ export const RANKS = [
 ] as const;
 export type Rank = (typeof RANKS)[number];
 
+export type NaturalRank = Exclude<Rank, "JOKER">;
+
 export type Card = {
   id: string;
   suit: Suit;
   rank: Rank;
   deckIndex: 0 | 1;
+};
+
+export type WildDeclaration = {
+  cardId: string;
+  asRank: NaturalRank;
 };
 
 export type PlayerPhase = "notOpened" | "opened";
@@ -33,6 +40,22 @@ export type TurnPhase = "draw" | "discard";
 export type GamePhase = "playing" | "roundEnd" | "gameEnd";
 
 export type RoundPhase = "active" | "scored";
+
+export type MeldKind = "set" | "run";
+
+export type TableMeld = {
+  id: string;
+  ownerId: string;
+  kind: MeldKind;
+  cards: Card[];
+  wildDeclarations: WildDeclaration[];
+};
+
+export type OpeningMeld = {
+  kind: MeldKind;
+  cards: Card[];
+  wildDeclarations: WildDeclaration[];
+};
 
 export type PlayerState = {
   id: string;
@@ -51,7 +74,7 @@ export type GameState = {
   turnPhase: TurnPhase;
   stock: Card[];
   discard: Card[];
-  melds: [];
+  melds: TableMeld[];
   cumulativeScores: number[];
 };
 
@@ -64,11 +87,13 @@ export type CreateGameConfig = {
 
 export type Action =
   | { kind: "draw"; source: "stock" | "discard" }
+  | { kind: "open"; melds: OpeningMeld[] }
   | { kind: "discard"; card: Card };
 
 export type LegalActions = {
   canDrawFromStock: boolean;
   canDrawFromDiscard: boolean;
+  canOpen: boolean;
   canDiscard: boolean;
   discardableCards: Card[];
 };

@@ -77,6 +77,7 @@ describe("legalActions", () => {
     expect(legalActions(state, activeId)).toEqual({
       canDrawFromStock: true,
       canDrawFromDiscard: false,
+      canOpen: false,
       canDiscard: false,
       discardableCards: [],
     });
@@ -87,6 +88,7 @@ describe("legalActions", () => {
     expect(legalActions(state, activeId)).toEqual({
       canDrawFromStock: false,
       canDrawFromDiscard: false,
+      canOpen: true,
       canDiscard: true,
       discardableCards: discardable,
     });
@@ -99,6 +101,7 @@ describe("legalActions", () => {
     expect(legalActions(state, inactiveId)).toEqual({
       canDrawFromStock: false,
       canDrawFromDiscard: false,
+      canOpen: false,
       canDiscard: false,
       discardableCards: [],
     });

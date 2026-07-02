@@ -1,12 +1,15 @@
 import { buildShoe, shuffleCards } from "./cards";
+import { validateOpeningMelds } from "./melds";
 import type {
   Action,
   ApplyActionResult,
   CreateGameConfig,
   GameState,
   LegalActions,
+  OpeningMeld,
   PlayerState,
   ShuffleOptions,
+  TableMeld,
 } from "./types";
 
 const CARDS_PER_HAND = 13;
@@ -48,8 +51,39 @@ function cardInHand(hand: PlayerState["hand"], cardId: string): boolean {
   return hand.some((card) => card.id === cardId);
 }
 
-function removeCardFromHand(hand: PlayerState["hand"], card: PlayerState["hand"][number]) {
-  return hand.filter((entry) => entry.id !== card.id);
+function removeCardsFromHand(hand: PlayerState["hand"], cardIds: string[]) {
+  const ids = new Set(cardIds);
+  return hand.filter((entry) => !ids.has(entry.id));
+}
+
+function cardsOwnedByPlayer(hand: PlayerState["hand"], melds: OpeningMeld[]): string | null {
+  const handIds = new Set(hand.map((card) => card.id));
+  const seen = new Set<string>();
+
+  for (const meld of melds) {
+    for (const card of meld.cards) {
+      if (!handIds.has(card.id)) {
+        return "Opening cards must be in your hand";
+      }
+      if (seen.has(card.id)) {
+        return "A card cannot appear in multiple melds";
+      }
+      seen.add(card.id);
+    }
+  }
+
+  return null;
+}
+
+function buildTableMelds(ownerId: string, melds: OpeningMeld[], existing: TableMeld[]): TableMeld[] {
+  const nextIndex = existing.filter((meld) => meld.ownerId === ownerId).length;
+  return melds.map((meld, offset) => ({
+    id: `${ownerId}-meld-${nextIndex + offset}`,
+    ownerId,
+    kind: meld.kind,
+    cards: meld.cards,
+    wildDeclarations: meld.wildDeclarations,
+  }));
 }
 
 function reshuffleStockFromDiscard(state: GameState): GameState | { error: string } {
@@ -138,6 +172,7 @@ export function legalActions(state: GameState, playerId: string): LegalActions {
     return {
       canDrawFromStock: false,
       canDrawFromDiscard: false,
+      canOpen: false,
       canDiscard: false,
       discardableCards: [],
     };
@@ -148,6 +183,7 @@ export function legalActions(state: GameState, playerId: string): LegalActions {
     return {
       canDrawFromStock: false,
       canDrawFromDiscard: false,
+      canOpen: false,
       canDiscard: false,
       discardableCards: [],
     };
@@ -159,6 +195,7 @@ export function legalActions(state: GameState, playerId: string): LegalActions {
     return {
       canDrawFromStock,
       canDrawFromDiscard: state.discard.length > 0,
+      canOpen: false,
       canDiscard: false,
       discardableCards: [],
     };
@@ -167,6 +204,7 @@ export function legalActions(state: GameState, playerId: string): LegalActions {
   return {
     canDrawFromStock: false,
     canDrawFromDiscard: false,
+    canOpen: player.playerPhase === "notOpened",
     canDiscard: true,
     discardableCards: [...player.hand],
   };
@@ -241,28 +279,69 @@ export function applyAction(
     };
   }
 
-  if (state.turnPhase !== "discard") {
-    return { state, error: "Must draw before discarding" };
+  if (action.kind === "open") {
+    if (state.turnPhase !== "discard") {
+      return { state, error: "Must draw before opening" };
+    }
+
+    const player = state.players[playerIndex]!;
+    if (player.playerPhase === "opened") {
+      return { state, error: "Already opened this round" };
+    }
+
+    const ownershipError = cardsOwnedByPlayer(player.hand, action.melds);
+    if (ownershipError) {
+      return { state, error: ownershipError };
+    }
+
+    const validationError = validateOpeningMelds(action.melds, state.roundNumber);
+    if (validationError) {
+      return { state, error: validationError };
+    }
+
+    const meldCardIds = action.melds.flatMap((meld) => meld.cards.map((card) => card.id));
+    const players = [...state.players];
+    players[playerIndex] = {
+      ...player,
+      playerPhase: "opened",
+      hand: removeCardsFromHand(player.hand, meldCardIds),
+    };
+
+    return {
+      state: {
+        ...state,
+        players,
+        melds: [...state.melds, ...buildTableMelds(playerId, action.melds, state.melds)],
+      },
+    };
   }
 
-  const player = state.players[playerIndex]!;
-  if (!cardInHand(player.hand, action.card.id)) {
-    return { state, error: "Card not in hand" };
+  if (action.kind === "discard") {
+    if (state.turnPhase !== "discard") {
+      return { state, error: "Must draw before discarding" };
+    }
+
+    const player = state.players[playerIndex]!;
+    if (!cardInHand(player.hand, action.card.id)) {
+      return { state, error: "Card not in hand" };
+    }
+
+    const players = [...state.players];
+    players[playerIndex] = {
+      ...player,
+      hand: removeCardsFromHand(player.hand, [action.card.id]),
+    };
+
+    return {
+      state: {
+        ...state,
+        players,
+        discard: [...state.discard, action.card],
+        activeSeatIndex: nextSeatClockwise(state, state.activeSeatIndex),
+        turnPhase: "draw",
+      },
+    };
   }
 
-  const players = [...state.players];
-  players[playerIndex] = {
-    ...player,
-    hand: removeCardFromHand(player.hand, action.card),
-  };
-
-  return {
-    state: {
-      ...state,
-      players,
-      discard: [...state.discard, action.card],
-      activeSeatIndex: nextSeatClockwise(state, state.activeSeatIndex),
-      turnPhase: "draw",
-    },
-  };
+  return { state, error: "Unknown action" };
 }

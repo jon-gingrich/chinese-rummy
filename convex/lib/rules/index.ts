@@ -5,6 +5,7 @@ export {
   startRound,
 } from "./engine";
 export { buildShoe } from "./cards";
+export { formatContract, getContractForRound } from "./contracts";
 export type {
   Action,
   ApplyActionResult,
@@ -12,9 +13,14 @@ export type {
   CreateGameConfig,
   GameState,
   LegalActions,
+  MeldKind,
+  NaturalRank,
+  OpeningMeld,
   PlayerState,
   Rank,
   ShuffleOptions,
   Suit,
+  TableMeld,
   TurnPhase,
+  WildDeclaration,
 } from "./types";
