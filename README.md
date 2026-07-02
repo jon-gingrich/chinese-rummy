@@ -12,22 +12,32 @@ npm install
 npx convex dev
 ```
 
-Follow the Convex CLI prompts to create/link a deployment. Then configure auth:
+Follow the Convex CLI prompts to create/link a deployment. Copy `.env.example` to `.env.local` — `npx convex dev` fills in `NEXT_PUBLIC_CONVEX_URL` and `NEXT_PUBLIC_CONVEX_SITE_URL`.
+
+Then configure auth (one-time):
 
 ```bash
 npx @convex-dev/auth --web-server-url http://localhost:3000 --skip-git-check
 ```
 
-Set OAuth and email provider secrets on your Convex deployment:
+Set Google OAuth and Resend secrets on your Convex deployment. See **[docs/setup/auth-providers.md](docs/setup/auth-providers.md)** for Google Cloud and Resend console steps.
+
+Quick path (interactive):
+
+```powershell
+.\scripts\setup-auth-providers.ps1
+```
+
+Or set variables manually:
 
 ```bash
 npx convex env set AUTH_GOOGLE_ID <client-id>
 npx convex env set AUTH_GOOGLE_SECRET <client-secret>
 npx convex env set AUTH_RESEND_KEY <resend-api-key>
-npx convex env set AUTH_EMAIL_FROM "Chinese Rummy <onboarding@yourdomain.com>"
+npx convex env set AUTH_EMAIL_FROM "Chinese Rummy <onboarding@resend.dev>"
 ```
 
-Copy `.env.example` to `.env.local` and set `NEXT_PUBLIC_CONVEX_URL` from the Convex dashboard.
+Google redirect URI must be `https://<deployment>.convex.site/api/auth/callback/google` (use `NEXT_PUBLIC_CONVEX_SITE_URL` from `.env.local`).
 
 ## Run
 
