@@ -4,9 +4,12 @@ import type { Card } from "../../convex/lib/rules/types";
 import { scaledCardDimensions } from "../lib/cardDisplay";
 import { useCardScale } from "../contexts/PlayerPreferencesContext";
 import {
+  FAN_SELECTED_LIFT_PX,
   fanCardStep,
   fanContainerHeight,
+  fanMarginExtra,
   fanRotation,
+  fanTotalSpreadWidth,
   fanTranslateY,
   sortHand,
   type HandSortMode,
@@ -41,13 +44,20 @@ export function CardFan({
   const selectedSet = new Set(selectedIds ?? (selectedId ? [selectedId] : []));
   const { width: cardWidth, height: cardHeight } = scaledCardDimensions(size, cardScale);
   const cardStep = fanCardStep(sortedCards.length, cardWidth);
+  const selectedIndices = new Set(
+    sortedCards.flatMap((entry, index) => (selectedSet.has(entry.id) ? [index] : [])),
+  );
+  const spreadWidth = fanTotalSpreadWidth(sortedCards.length, selectedIndices);
   const maxRotation =
     sortedCards.length <= 1
       ? 0
       : Math.min(sortedCards.length * 5, sortedCards.length > 10 ? 34 : 44) / 2;
   const bottomBuffer = Math.ceil(maxRotation * 0.35 + maxRotation * 0.5 + 6);
   const containerHeight = fanContainerHeight(sortedCards.length, cardHeight) + bottomBuffer;
-  const fanWidth = Math.max(sortedCards.length * cardStep + cardWidth, Math.round(cardWidth * 4.5));
+  const fanWidth = Math.max(
+    sortedCards.length * cardStep + cardWidth + spreadWidth,
+    Math.round(cardWidth * 4.5),
+  );
 
   return (
     <div className={showSortControls ? "space-y-1" : ""}>
@@ -92,6 +102,8 @@ export function CardFan({
             const selected = selectedSet.has(card.id);
             const rotation = fanRotation(index, sortedCards.length);
             const translateY = fanTranslateY(index, sortedCards.length);
+            const extraMargin = fanMarginExtra(index, selectedIndices);
+            const lift = selected ? FAN_SELECTED_LIFT_PX : 0;
 
             return (
               <PlayingCard
@@ -101,12 +113,12 @@ export function CardFan({
                 selected={selected}
                 disabled={disabled}
                 onClick={() => onToggle(card.id)}
-                className="relative"
+                className="relative transition-[margin,transform] duration-200 ease-out"
                 style={{
-                  marginLeft: index === 0 ? 0 : `${cardStep - cardWidth}px`,
-                  transform: `rotate(${rotation}deg) translateY(${translateY}px)`,
+                  marginLeft: index === 0 ? 0 : `${cardStep - cardWidth + extraMargin}px`,
+                  transform: `rotate(${rotation}deg) translateY(${translateY - lift}px)`,
                   transformOrigin: "bottom center",
-                  zIndex: selected ? sortedCards.length + 1 : index + 1,
+                  zIndex: index + 1,
                 }}
               />
             );

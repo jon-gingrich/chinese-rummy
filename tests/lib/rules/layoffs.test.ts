@@ -140,6 +140,114 @@ describe("lay-off timing", () => {
       result.state.players.find((player) => player.id === activeId)?.hand,
     ).toHaveLength(1);
   });
+
+  it("allows laying off a joker onto a set with rank declaration", () => {
+    let state = startRound(createGame({ players: seatedPlayers(2) }), { seed: 1 });
+    const activeId = state.players.find((player) => player.seatIndex === state.activeSeatIndex)!.id;
+    const otherId = state.players.find((player) => player.id !== activeId)!.id;
+    const joker = makeCard("joker", "JOKER", 0);
+
+    state = {
+      ...state,
+      players: state.players.map((player) =>
+        player.id === activeId
+          ? {
+              ...player,
+              playerPhase: "opened",
+              openedThisTurn: false,
+              hand: [joker, makeCard("clubs", "9")],
+            }
+          : player,
+      ),
+      activeSeatIndex: state.players.find((player) => player.id === activeId)!.seatIndex,
+      turnPhase: "discard",
+      melds: [
+        tableMeld("other-set", otherId, "set", [
+          makeCard("diamonds", "7"),
+          makeCard("clubs", "7"),
+          makeCard("spades", "7"),
+        ]),
+      ],
+    };
+
+    const result = applyAction(
+      state,
+      {
+        kind: "layOff",
+        targetMeldId: "other-set",
+        card: joker,
+        wildDeclaration: { cardId: joker.id, asRank: "7" },
+      },
+      activeId,
+    );
+
+    expect(result.error).toBeUndefined();
+    expect(result.state.melds[0]?.cards).toHaveLength(4);
+    expect(result.state.melds[0]?.wildDeclarations).toContainEqual({
+      cardId: joker.id,
+      asRank: "7",
+    });
+    expect(
+      result.state.players.find((player) => player.id === activeId)?.hand,
+    ).toHaveLength(1);
+  });
+
+  it("inserts a second wild into a set without adjacent wilds", () => {
+    const activeId = "player-0";
+    const otherId = "player-1";
+    const existingWild = makeCard("joker", "JOKER", 0);
+    const newWild = makeCard("joker", "JOKER", 1);
+    const state: GameState = {
+      ...startRound(createGame({ players: seatedPlayers(2) }), { seed: 1 }),
+      turnPhase: "discard",
+      activeSeatIndex: 0,
+      players: [
+        {
+          id: activeId,
+          seatIndex: 0,
+          playerPhase: "opened",
+          openedThisTurn: false,
+          hand: [newWild, makeCard("clubs", "9")],
+        },
+        {
+          id: otherId,
+          seatIndex: 1,
+          playerPhase: "opened",
+          openedThisTurn: false,
+          hand: [],
+        },
+      ],
+      melds: [
+        tableMeld(
+          "queen-set",
+          otherId,
+          "set",
+          [makeCard("hearts", "Q"), makeCard("spades", "Q"), existingWild],
+          [{ cardId: existingWild.id, asRank: "Q" }],
+        ),
+      ],
+    };
+
+    const result = applyAction(
+      state,
+      {
+        kind: "layOff",
+        targetMeldId: "queen-set",
+        card: newWild,
+        wildDeclaration: { cardId: newWild.id, asRank: "Q" },
+      },
+      activeId,
+    );
+
+    expect(result.error).toBeUndefined();
+    const meld = result.state.melds[0]!;
+    expect(meld.cards).toHaveLength(4);
+    expect(meld.cards.filter((card) => card.rank === "JOKER")).toHaveLength(2);
+    const wildIndexes = meld.cards
+      .map((card, index) => (card.rank === "JOKER" ? index : -1))
+      .filter((index) => index >= 0);
+    expect(Math.abs(wildIndexes[0]! - wildIndexes[1]!)).toBeGreaterThan(1);
+  });
 });
 
 describe("wild relocation", () => {

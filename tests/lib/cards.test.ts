@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Card } from "../../convex/lib/rules/types";
-import { fanRotation, formatCardLabel, sortHand } from "../../src/lib/cards";
+import { fanMarginExtra, fanRotation, formatCardLabel, sortHand } from "../../src/lib/cards";
 
 function card(
   id: string,
@@ -63,5 +63,22 @@ describe("fanRotation", () => {
 
   it("returns zero for a single card", () => {
     expect(fanRotation(0, 1)).toBe(0);
+  });
+});
+
+describe("fanMarginExtra", () => {
+  it("adds spread on both sides of a lone selected card", () => {
+    const selected = new Set([2]);
+    expect(fanMarginExtra(0, selected)).toBe(0);
+    expect(fanMarginExtra(1, selected)).toBe(0);
+    expect(fanMarginExtra(2, selected)).toBe(7);
+    expect(fanMarginExtra(3, selected)).toBe(7);
+  });
+
+  it("does not add spread between adjacent selected cards", () => {
+    const selected = new Set([2, 3]);
+    expect(fanMarginExtra(2, selected)).toBe(7);
+    expect(fanMarginExtra(3, selected)).toBe(0);
+    expect(fanMarginExtra(4, selected)).toBe(7);
   });
 });

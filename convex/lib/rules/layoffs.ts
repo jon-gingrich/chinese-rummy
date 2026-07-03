@@ -1,10 +1,27 @@
-import type { Card, LayOffTarget, TableMeld, WildDeclaration } from "./types";
+import type { Card, LayOffTarget, NaturalRank, TableMeld, WildDeclaration } from "./types";
 import {
   effectiveRankForCard,
+  isJoker,
   isWildInMeld,
   validateRunStructure,
   validateSetStructure,
 } from "./melds";
+
+const NATURAL_RANKS: NaturalRank[] = [
+  "A",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "10",
+  "J",
+  "Q",
+  "K",
+];
 
 export type WildRelocation = {
   destinationMeldId: string;
@@ -16,6 +33,7 @@ export type LayOffInput = {
   card: Card;
   replaceWildCardId?: string;
   relocation?: WildRelocation;
+  wildDeclaration?: WildDeclaration;
 };
 
 function meldById(melds: TableMeld[], meldId: string): TableMeld | undefined {
@@ -37,6 +55,24 @@ function setRank(meld: TableMeld): string | null {
   return null;
 }
 
+function tryInsertIntoSet(
+  meld: TableMeld,
+  card: Card,
+  extraDeclarations: WildDeclaration[] = [],
+): TableMeld | null {
+  const wildDeclarations = [...meld.wildDeclarations, ...extraDeclarations];
+
+  for (let index = 0; index <= meld.cards.length; index += 1) {
+    const cards = [...meld.cards];
+    cards.splice(index, 0, card);
+    if (validateSetStructure(cards, wildDeclarations)) {
+      return { ...meld, cards, wildDeclarations };
+    }
+  }
+
+  return null;
+}
+
 function tryAddToSet(meld: TableMeld, card: Card): TableMeld | null {
   const rank = setRank(meld);
   if (!rank) {
@@ -50,11 +86,7 @@ function tryAddToSet(meld: TableMeld, card: Card): TableMeld | null {
     return null;
   }
 
-  const updated: TableMeld = {
-    ...meld,
-    cards: [...meld.cards, card],
-  };
-  return validateSetStructure(updated.cards, updated.wildDeclarations) ? updated : null;
+  return tryInsertIntoSet(meld, card);
 }
 
 function tryAddToRun(meld: TableMeld, card: Card): TableMeld | null {
@@ -69,6 +101,65 @@ function tryAddToRun(meld: TableMeld, card: Card): TableMeld | null {
   }
 
   return null;
+}
+
+function tryAddWildToSet(meld: TableMeld, card: Card, asRank: NaturalRank): TableMeld | null {
+  const rank = setRank(meld);
+  if (!rank || asRank !== rank) {
+    return null;
+  }
+
+  const wildDeclaration: WildDeclaration = { cardId: card.id, asRank };
+  return tryInsertIntoSet(meld, card, [wildDeclaration]);
+}
+
+function tryAddWildToRun(meld: TableMeld, card: Card, asRank: NaturalRank): TableMeld | null {
+  const wildDeclaration: WildDeclaration = { cardId: card.id, asRank };
+  const declarations = [...meld.wildDeclarations, wildDeclaration];
+
+  const atStart: TableMeld = { ...meld, cards: [card, ...meld.cards], wildDeclarations: declarations };
+  if (validateRunStructure(atStart.cards, atStart.wildDeclarations)) {
+    return atStart;
+  }
+
+  const atEnd: TableMeld = { ...meld, cards: [...meld.cards, card], wildDeclarations: declarations };
+  if (validateRunStructure(atEnd.cards, atEnd.wildDeclarations)) {
+    return atEnd;
+  }
+
+  return null;
+}
+
+function isWildLayOffCandidate(card: Card): boolean {
+  return isJoker(card) || card.rank === "2";
+}
+
+function findValidWildRanksForMeld(meld: TableMeld, card: Card): NaturalRank[] {
+  const ranks: NaturalRank[] = [];
+
+  if (card.rank === "2") {
+    const asNatural = meld.kind === "set" ? tryAddToSet(meld, card) : tryAddToRun(meld, card);
+    if (asNatural) {
+      ranks.push("2");
+    }
+  }
+
+  if (!isJoker(card) && card.rank !== "2") {
+    return ranks;
+  }
+
+  for (const asRank of NATURAL_RANKS) {
+    if (card.rank === "2" && asRank === "2") {
+      continue;
+    }
+    const updated =
+      meld.kind === "set" ? tryAddWildToSet(meld, card, asRank) : tryAddWildToRun(meld, card, asRank);
+    if (updated) {
+      ranks.push(asRank);
+    }
+  }
+
+  return ranks;
 }
 
 function replaceableWilds(meld: TableMeld, card: Card): string[] {
@@ -116,10 +207,17 @@ export function findLayOffTargets(
   const targets: LayOffTarget[] = [];
   for (const meld of melds) {
     for (const card of hand) {
-      const updated =
-        meld.kind === "set" ? tryAddToSet(meld, card) : tryAddToRun(meld, card);
-      if (updated) {
-        targets.push({ cardId: card.id, meldId: meld.id, mode: "add" });
+      if (isWildLayOffCandidate(card)) {
+        const wildRanks = findValidWildRanksForMeld(meld, card);
+        if (wildRanks.length > 0) {
+          targets.push({ cardId: card.id, meldId: meld.id, mode: "add", wildRanks });
+        }
+      } else {
+        const updated =
+          meld.kind === "set" ? tryAddToSet(meld, card) : tryAddToRun(meld, card);
+        if (updated) {
+          targets.push({ cardId: card.id, meldId: meld.id, mode: "add" });
+        }
       }
 
       for (const wildCardId of replaceableWilds(meld, card)) {
@@ -266,8 +364,25 @@ export function applyLayOff(
     );
   }
 
-  const updated =
-    target.kind === "set" ? tryAddToSet(target, input.card) : tryAddToRun(target, input.card);
+  const asRank = input.wildDeclaration?.asRank;
+  const laysWild =
+    isJoker(input.card) ||
+    (input.card.rank === "2" && asRank !== undefined && asRank !== "2");
+
+  let updated: TableMeld | null;
+  if (laysWild) {
+    if (!input.wildDeclaration) {
+      return { error: "Wild card must declare a rank" };
+    }
+    updated =
+      target.kind === "set"
+        ? tryAddWildToSet(target, input.card, input.wildDeclaration.asRank)
+        : tryAddWildToRun(target, input.card, input.wildDeclaration.asRank);
+  } else {
+    updated =
+      target.kind === "set" ? tryAddToSet(target, input.card) : tryAddToRun(target, input.card);
+  }
+
   if (!updated) {
     return { error: "Card cannot be laid off on this meld" };
   }

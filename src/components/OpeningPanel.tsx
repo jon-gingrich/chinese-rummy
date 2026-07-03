@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { getContractForRound } from "../../convex/lib/rules/contracts";
-import { isJoker } from "../../convex/lib/rules/melds";
+import { isJoker, normalizeOpeningMeld, validateOpeningMeld } from "../../convex/lib/rules/melds";
 import type { Card, NaturalRank, OpeningMeld } from "../../convex/lib/rules/types";
 import { formatCardLabel, type HandSortMode } from "../lib/cards";
 import { CardFan } from "./CardFan";
@@ -103,11 +103,17 @@ export function OpeningPanel({
       }
     }
 
-    const meld: OpeningMeld = {
+    const meld = normalizeOpeningMeld({
       kind: nextRequirement.kind,
       cards: selectedCards,
       wildDeclarations: wildDeclarationsForSelection(),
-    };
+    });
+
+    const validationError = validateOpeningMeld(meld);
+    if (validationError) {
+      onStatus(validationError);
+      return;
+    }
 
     setPendingMelds((current) => [...current, meld]);
     setSelectedIds([]);

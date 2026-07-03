@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { findLayOffTargets } from "../../convex/lib/rules/layoffs";
+import { isJoker } from "../../convex/lib/rules/melds";
 import type { Card, LayOffTarget, NaturalRank, TableMeld } from "../../convex/lib/rules/types";
 
 const NATURAL_RANKS: NaturalRank[] = [
@@ -73,6 +74,19 @@ export function useLayOffFlow({
     [cardTargets, selectedTargetKey],
   );
 
+  const validWildRanks = useMemo(() => {
+    if (selectedTarget?.mode !== "add" || !selectedTarget.wildRanks) {
+      return [];
+    }
+    return selectedTarget.wildRanks;
+  }, [selectedTarget]);
+
+  useEffect(() => {
+    if (validWildRanks.length > 0 && !validWildRanks.includes(wildRank)) {
+      setWildRank(validWildRanks[0]!);
+    }
+  }, [validWildRanks, wildRank]);
+
   const highlightMeldIds = useMemo(() => {
     if (!selectedCard) {
       return new Set<string>();
@@ -99,6 +113,11 @@ export function useLayOffFlow({
       return;
     }
 
+    const laysAsWild =
+      selectedTarget.mode === "add" &&
+      selectedTarget.wildRanks &&
+      (isJoker(selectedCard) || (selectedCard.rank === "2" && wildRank !== "2"));
+
     setBusy(true);
     onStatus(null);
     try {
@@ -116,6 +135,10 @@ export function useLayOffFlow({
                 destinationMeldId,
                 wildDeclaration: { cardId: selectedTarget.replaceWildCardId, asRank: wildRank },
               }
+            : undefined,
+        wildDeclaration:
+          laysAsWild
+            ? { cardId: selectedCard.id, asRank: wildRank }
             : undefined,
       });
 
@@ -148,6 +171,13 @@ export function useLayOffFlow({
     selectMeld,
     submitLayOff,
     needsRelocationUi: selectedTarget?.mode === "replaceWild",
+    needsWildRankUi:
+      selectedTarget?.mode === "add" &&
+      (selectedTarget.wildRanks?.length ?? 0) > 0 &&
+      (selectedCard !== null &&
+        (isJoker(selectedCard) ||
+          (selectedCard.rank === "2" && selectedTarget.wildRanks?.some((rank) => rank !== "2")))),
+    validWildRanks,
     relocationDestinations: selectedTarget?.mode === "replaceWild" ? selectedTarget.relocationDestinations : [],
   };
 }

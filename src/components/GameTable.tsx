@@ -91,6 +91,18 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
       ? [selectedCardId]
       : [];
 
+  const openingUndoButton =
+    canOpen && opening.pendingMelds.length > 0 ? (
+      <button
+        type="button"
+        disabled={opening.busy}
+        onClick={() => opening.undoLastMeld()}
+        className="game-btn-secondary text-xs"
+      >
+        Undo meld
+      </button>
+    ) : null;
+
   const turnMessage = useMemo(() => {
     if (!table) {
       return "Loading…";
@@ -285,7 +297,7 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
         isMyTurn={isMyTurn && table.phase === "playing"}
         players={table.players}
         onRulesClick={() => setShowRules(true)}
-        settingsHref="/home/settings"
+        settingsHref={`/home/settings?returnTo=${encodeURIComponent(`/room/${roomId}`)}`}
       />
 
       <div className="wood-rail relative m-1 flex min-h-0 flex-1 flex-col rounded-xl p-1 shadow-2xl">
@@ -316,6 +328,11 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
                 pendingMelds={player.id === viewer?.userId ? opening.pendingMelds : []}
                 highlightMeldIds={layOff.highlightMeldIds}
                 onMeldClick={canLayOff && selectedCardId ? layOff.selectMeld : undefined}
+                onPendingMeldClick={
+                  canOpen && player.id === viewer?.userId
+                    ? (index) => opening.removePendingMeldsFrom(index)
+                    : undefined
+                }
                 isMe={player.id === viewer?.userId}
               />
             ))}
@@ -347,9 +364,10 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
               title="Declare wild ranks"
               actions={
                 <>
+                  {openingUndoButton}
                   <button
                     type="button"
-                    disabled={opening.busy}
+                    disabled={opening.busy || !opening.canAddMeld}
                     onClick={() => opening.addMeld()}
                     className="game-btn-secondary text-xs"
                   >
@@ -367,6 +385,11 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
                   opening.setWildRanks((current) => ({ ...current, [cardId]: rank }))
                 }
               />
+              {opening.selectionValidationError ? (
+                <p className="text-xs font-semibold text-[var(--danger)]">
+                  {opening.selectionValidationError}
+                </p>
+              ) : null}
             </ActionDock>
           ) : null}
 
@@ -374,18 +397,26 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
             <ActionDock
               title="Opening"
               actions={
-                <button
-                  type="button"
-                  disabled={opening.busy || opening.selectedIds.length !== opening.nextRequirement.size}
-                  onClick={() => opening.addMeld()}
-                  className="game-btn-primary text-xs"
-                >
-                  Add {opening.nextRequirement.kind} ({opening.selectedIds.length}/
-                  {opening.nextRequirement.size})
-                </button>
+                <>
+                  {openingUndoButton}
+                  <button
+                    type="button"
+                    disabled={opening.busy || !opening.canAddMeld}
+                    onClick={() => opening.addMeld()}
+                    className="game-btn-primary text-xs"
+                  >
+                    Add {opening.nextRequirement.kind} ({opening.selectedIds.length}/
+                    {opening.nextRequirement.size})
+                  </button>
+                </>
               }
             >
               <p className="text-xs text-[var(--muted)]">{opening.progressLabel}</p>
+              {opening.selectionValidationError ? (
+                <p className="text-xs font-semibold text-[var(--danger)]">
+                  {opening.selectionValidationError}
+                </p>
+              ) : null}
             </ActionDock>
           ) : null}
 
@@ -393,14 +424,17 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
             <ActionDock
               title="Ready to open"
               actions={
-                <button
-                  type="button"
-                  disabled={opening.busy}
-                  onClick={() => void requestOpeningSubmit()}
-                  className="game-btn-primary text-xs"
-                >
-                  Submit opening
-                </button>
+                <>
+                  {openingUndoButton}
+                  <button
+                    type="button"
+                    disabled={opening.busy}
+                    onClick={() => void requestOpeningSubmit()}
+                    className="game-btn-primary text-xs"
+                  >
+                    Submit opening
+                  </button>
+                </>
               }
             >
               <p className="text-xs text-[var(--muted)]">All contract melds are built on your board.</p>
@@ -453,7 +487,43 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
             </ActionDock>
           ) : null}
 
-          {canLayOff && layOff.selectedTarget && !layOff.needsRelocationUi ? (
+          {canLayOff && layOff.needsWildRankUi ? (
+            <ActionDock
+              title="Declare wild rank"
+              actions={
+                <button
+                  type="button"
+                  disabled={layOff.busy}
+                  onClick={() => void layOff.submitLayOff()}
+                  className="game-btn-primary text-xs"
+                >
+                  Lay off
+                </button>
+              }
+            >
+              <label className="block text-xs">
+                <span className="text-[var(--muted)]">Wild represents</span>
+                <select
+                  value={layOff.wildRank}
+                  onChange={(event) => layOff.setWildRank(event.target.value as typeof layOff.wildRank)}
+                  className="game-input mt-1 py-1.5 text-xs"
+                >
+                  {selectedCard?.rank === "2" && layOff.validWildRanks.includes("2") ? (
+                    <option value="2">Natural 2</option>
+                  ) : null}
+                  {layOff.validWildRanks
+                    .filter((rank) => rank !== "2" || selectedCard?.rank !== "2")
+                    .map((rank) => (
+                      <option key={rank} value={rank}>
+                        {rank}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            </ActionDock>
+          ) : null}
+
+          {canLayOff && layOff.selectedTarget && !layOff.needsRelocationUi && !layOff.needsWildRankUi ? (
             <ActionDock
               title="Lay off"
               actions={

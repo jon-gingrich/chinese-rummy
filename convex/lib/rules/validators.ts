@@ -77,6 +77,7 @@ export const layOffTargetValidator = v.union(
     cardId: v.string(),
     meldId: v.string(),
     mode: v.literal("add"),
+    wildRanks: v.optional(v.array(naturalRankValidator)),
   }),
   v.object({
     cardId: v.string(),

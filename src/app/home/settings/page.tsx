@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { useGuestAuth } from "@/hooks/useGuestAuth";
@@ -81,7 +82,17 @@ function ScalePicker({
   );
 }
 
+function resolveReturnPath(returnTo: string | null): string {
+  if (returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")) {
+    return returnTo;
+  }
+  return "/home";
+}
+
 export default function SettingsPage() {
+  const searchParams = useSearchParams();
+  const returnTo = resolveReturnPath(searchParams.get("returnTo"));
+  const returningToGame = returnTo.startsWith("/room/");
   const { viewer, isLoading: authLoading } = useGuestAuth();
   const { preferences, updatePreferences } = usePlayerPreferences();
   const [draft, setDraft] = useState(preferences);
@@ -113,7 +124,7 @@ export default function SettingsPage() {
 
   if (authLoading || !viewer) {
     return (
-      <AppShell backHref="/home" title="Settings">
+      <AppShell backHref={returnTo} title="Settings">
         <p className="text-[var(--muted)]">Loading settings…</p>
       </AppShell>
     );
@@ -121,7 +132,7 @@ export default function SettingsPage() {
 
   return (
     <AppShell
-      backHref="/home"
+      backHref={returnTo}
       title="Player settings"
       subtitle="Saved to your account and applied across devices when signed in."
     >
@@ -195,8 +206,8 @@ export default function SettingsPage() {
               Reset changes
             </button>
           ) : null}
-          <Link href="/home" className="game-btn-secondary">
-            Back to home
+          <Link href={returnTo} className="game-btn-secondary">
+            {returningToGame ? "Back to game" : "Back to home"}
           </Link>
         </div>
         {status ? <p className="text-sm text-[var(--muted)]">{status}</p> : null}

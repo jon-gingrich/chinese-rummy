@@ -107,6 +107,8 @@ export type LayOffTarget =
       cardId: string;
       meldId: string;
       mode: "add";
+      /** Present when laying off a joker or two-as-wild; player must declare the rank. */
+      wildRanks?: NaturalRank[];
     }
   | {
       cardId: string;
@@ -125,6 +127,8 @@ export type Action =
       card: Card;
       replaceWildCardId?: string;
       relocation?: WildRelocation;
+      /** Rank declaration when laying off a joker or two played as wild. */
+      wildDeclaration?: WildDeclaration;
     }
   | { kind: "discard"; card: Card };
 

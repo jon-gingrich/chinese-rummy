@@ -1,6 +1,6 @@
 import { buildShoe, shuffleCards } from "./cards";
 import { allContractsFulfilled, advanceContractRound } from "./contracts";
-import { validateOpeningMelds } from "./melds";
+import { normalizeOpeningMeld, validateOpeningMelds } from "./melds";
 import { findLayOffTargets, applyLayOff, validateLayOff } from "./layoffs";
 import {
   gameComplete,
@@ -126,13 +126,16 @@ function finishRound(state: GameState, goerPlayerId: string): GameState {
 
 function buildTableMelds(ownerId: string, melds: OpeningMeld[], existing: TableMeld[]): TableMeld[] {
   const nextIndex = existing.filter((meld) => meld.ownerId === ownerId).length;
-  return melds.map((meld, offset) => ({
-    id: `${ownerId}-meld-${nextIndex + offset}`,
-    ownerId,
-    kind: meld.kind,
-    cards: meld.cards,
-    wildDeclarations: meld.wildDeclarations,
-  }));
+  return melds.map((meld, offset) => {
+    const normalized = normalizeOpeningMeld(meld);
+    return {
+      id: `${ownerId}-meld-${nextIndex + offset}`,
+      ownerId,
+      kind: normalized.kind,
+      cards: normalized.cards,
+      wildDeclarations: normalized.wildDeclarations,
+    };
+  });
 }
 
 function reshuffleStockFromDiscard(state: GameState): GameState | { error: string } {
@@ -427,6 +430,7 @@ export function applyAction(
         card: action.card,
         replaceWildCardId: action.replaceWildCardId,
         relocation: action.relocation,
+        wildDeclaration: action.wildDeclaration,
       },
       player.playerPhase === "opened",
       hasOpenedThisTurn(player),
@@ -440,6 +444,7 @@ export function applyAction(
       card: action.card,
       replaceWildCardId: action.replaceWildCardId,
       relocation: action.relocation,
+      wildDeclaration: action.wildDeclaration,
     });
     if ("error" in result) {
       return { state, error: result.error };

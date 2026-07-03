@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { formatContract } from "../../../convex/lib/rules/contracts";
 import {
+  findValidWildRanksForOpeningMeld,
   hasAdjacentWilds,
   isWildInMeld,
   makeCard,
+  orderRunCards,
   validateOpeningMeld,
   validateOpeningMelds,
 } from "../../../convex/lib/rules/melds";
@@ -130,6 +132,50 @@ describe("run validation", () => {
       wildDeclarations: [],
     });
     expect(result).toBe("Run cards must be consecutive");
+  });
+
+  it("accepts a run with a two played as a wild bridge card", () => {
+    const eight = makeCard("diamonds", "8");
+    const two = makeCard("hearts", "2");
+    const ten = makeCard("diamonds", "10");
+
+    expect(
+      validateOpeningMeld({
+        kind: "run",
+        cards: [eight, two, ten],
+        wildDeclarations: [],
+      }),
+    ).toBe("Run cards must share the same suit");
+
+    expect(
+      validateOpeningMeld({
+        kind: "run",
+        cards: [eight, two, ten],
+        wildDeclarations: [{ cardId: two.id, asRank: "9" }],
+      }),
+    ).toBeNull();
+  });
+});
+
+describe("opening wild rank suggestions", () => {
+  it("finds the only valid wild rank for a bridging two in a run", () => {
+    const eight = makeCard("diamonds", "8");
+    const two = makeCard("hearts", "2");
+    const ten = makeCard("diamonds", "10");
+
+    expect(
+      findValidWildRanksForOpeningMeld("run", [eight, two, ten], two, []),
+    ).toEqual(["9"]);
+  });
+
+  it("orders run cards by effective rank, not hand order", () => {
+    const eight = makeCard("diamonds", "8");
+    const two = makeCard("hearts", "2");
+    const ten = makeCard("diamonds", "10");
+
+    expect(
+      orderRunCards([ten, eight, two], [{ cardId: two.id, asRank: "9" }]).map((card) => card.id),
+    ).toEqual([eight.id, two.id, ten.id]);
   });
 });
 

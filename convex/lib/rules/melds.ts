@@ -1,7 +1,7 @@
 import { matchesContract } from "./contracts";
-import type { Card, Rank, Suit, WildDeclaration } from "./types";
+import type { Card, MeldKind, NaturalRank, Rank, Suit, WildDeclaration } from "./types";
 
-const NATURAL_RANKS: Rank[] = [
+const NATURAL_RANKS: NaturalRank[] = [
   "A",
   "2",
   "3",
@@ -193,6 +193,78 @@ export function validateRunStructure(
     validateRunWithAceModeStructure(cards, wildDeclarations, false, waiveAdjacency) ||
     validateRunWithAceModeStructure(cards, wildDeclarations, true, waiveAdjacency)
   );
+}
+
+function resolveRunAceHigh(
+  cards: Card[],
+  wildDeclarations: WildDeclaration[],
+  waiveAdjacency = false,
+): boolean {
+  if (validateRunWithAceModeStructure(cards, wildDeclarations, false, waiveAdjacency)) {
+    return false;
+  }
+  return true;
+}
+
+export function orderRunCards(cards: Card[], wildDeclarations: WildDeclaration[]): Card[] {
+  const aceHigh = resolveRunAceHigh(cards, wildDeclarations, true);
+
+  return [...cards].sort((left, right) => {
+    const leftRank = effectiveRankForCard(left, wildDeclarations);
+    const rightRank = effectiveRankForCard(right, wildDeclarations);
+    if (typeof leftRank === "object" || typeof rightRank === "object") {
+      return left.id.localeCompare(right.id);
+    }
+    const diff = rankValue(leftRank, aceHigh) - rankValue(rightRank, aceHigh);
+    return diff !== 0 ? diff : left.id.localeCompare(right.id);
+  });
+}
+
+export function normalizeOpeningMeld(meld: OpeningMeldInput): OpeningMeldInput {
+  if (meld.kind !== "run") {
+    return meld;
+  }
+  return {
+    ...meld,
+    cards: orderRunCards(meld.cards, meld.wildDeclarations),
+  };
+}
+
+export function findValidWildRanksForOpeningMeld(
+  kind: MeldKind,
+  cards: Card[],
+  wildCard: Card,
+  otherDeclarations: WildDeclaration[],
+): NaturalRank[] {
+  if (!isJoker(wildCard) && wildCard.rank !== "2") {
+    return [];
+  }
+
+  const ranks: NaturalRank[] = [];
+  const declarationsFor = (asRank: NaturalRank | "natural"): WildDeclaration[] => {
+    const declarations = otherDeclarations.filter((entry) => entry.cardId !== wildCard.id);
+    if (asRank === "natural") {
+      return declarations;
+    }
+    return [...declarations, { cardId: wildCard.id, asRank }];
+  };
+
+  if (wildCard.rank === "2") {
+    if (validateOpeningMeld({ kind, cards, wildDeclarations: declarationsFor("natural") }) === null) {
+      ranks.push("2");
+    }
+  }
+
+  for (const asRank of NATURAL_RANKS) {
+    if (wildCard.rank === "2" && asRank === "2") {
+      continue;
+    }
+    if (validateOpeningMeld({ kind, cards, wildDeclarations: declarationsFor(asRank) }) === null) {
+      ranks.push(asRank);
+    }
+  }
+
+  return ranks;
 }
 
 function validateSet(

@@ -95,6 +95,69 @@ describe("findLayOffTargets", () => {
     });
   });
 
+  it("offers lay-off targets for a joker on a matching set", () => {
+    const joker = makeCard("joker", "JOKER", 0);
+    const melds = [
+      tableMeld("seven-set", "player-1", "set", [
+        makeCard("hearts", "7"),
+        makeCard("spades", "7"),
+        makeCard("clubs", "7"),
+      ]),
+    ];
+
+    const targets = findLayOffTargets(melds, [joker], true, false);
+
+    expect(targets).toContainEqual({
+      cardId: joker.id,
+      meldId: "seven-set",
+      mode: "add",
+      wildRanks: ["7"],
+    });
+  });
+
+  it("offers lay-off for a second wild on a set when not adjacent", () => {
+    const existingWild = makeCard("joker", "JOKER", 0);
+    const newWild = makeCard("joker", "JOKER", 1);
+    const melds = [
+      tableMeld(
+        "queen-set",
+        "player-1",
+        "set",
+        [makeCard("hearts", "Q"), makeCard("spades", "Q"), existingWild],
+        [{ cardId: existingWild.id, asRank: "Q" }],
+      ),
+    ];
+
+    const targets = findLayOffTargets(melds, [newWild], true, false);
+
+    expect(targets).toContainEqual({
+      cardId: newWild.id,
+      meldId: "queen-set",
+      mode: "add",
+      wildRanks: ["Q"],
+    });
+  });
+
+  it("offers lay-off targets for a joker extending a run", () => {
+    const joker = makeCard("joker", "JOKER", 0);
+    const melds = [
+      tableMeld("heart-run", "player-1", "run", [
+        makeCard("hearts", "5"),
+        makeCard("hearts", "6"),
+        makeCard("hearts", "7"),
+      ]),
+    ];
+
+    const targets = findLayOffTargets(melds, [joker], true, false);
+
+    expect(targets).toContainEqual({
+      cardId: joker.id,
+      meldId: "heart-run",
+      mode: "add",
+      wildRanks: ["4", "8"],
+    });
+  });
+
   it("offers wild replacement on runs", () => {
     const joker = makeCard("joker", "JOKER", 0);
     const naturalEight = makeCard("hearts", "8");

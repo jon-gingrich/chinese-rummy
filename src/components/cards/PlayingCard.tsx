@@ -28,6 +28,31 @@ type PlayingCardProps = {
   style?: React.CSSProperties;
 };
 
+const WILD_PURPLE = "#7b2cbf";
+const WILD_AMBER = "#d97706";
+
+function WildFaceArt({
+  asRank,
+  isJokerFace,
+}: {
+  asRank: NaturalRank | null;
+  isJokerFace: boolean;
+}) {
+  return (
+    <>
+      <text x="28" y="40" textAnchor="middle" fontSize="16" fontWeight="800" fill={WILD_AMBER} opacity="0.35">
+        ★
+      </text>
+      <text x="28" y="54" textAnchor="middle" fontSize="22" fontWeight="800" fill={WILD_PURPLE}>
+        {asRank ?? "?"}
+      </text>
+      <text x="28" y="66" textAnchor="middle" fontSize="7" fontWeight="700" fill={WILD_AMBER} letterSpacing="0.5">
+        {isJokerFace ? "JOKER" : "WILD"}
+      </text>
+    </>
+  );
+}
+
 function CenterArt({
   suit,
   rank,
@@ -43,11 +68,7 @@ function CenterArt({
   const color = red ? "#c0392b" : "#2c3e50";
 
   if (rank === "JOKER" || playedWild) {
-    return (
-      <text x="28" y="52" textAnchor="middle" fontSize="20" fontWeight="800" fill="#7b2cbf">
-        {asRank ?? "★"}
-      </text>
-    );
+    return <WildFaceArt asRank={asRank} isJokerFace={rank === "JOKER"} />;
   }
 
   if (["J", "Q", "K"].includes(rank)) {
@@ -100,16 +121,21 @@ function CardFace({
   playedWild,
   faceDown,
   patternId,
+  displayOnly,
 }: {
   card: Card;
   asRank: NaturalRank | null;
   playedWild: boolean;
   faceDown: boolean;
   patternId: string;
+  displayOnly: boolean;
 }) {
+  const isJoker = card.rank === "JOKER";
   const rankColor = isRedSuit(card.suit) ? "#c0392b" : "#2c3e50";
-  const displayRank = card.rank === "JOKER" ? "★" : playedWild && asRank ? asRank : card.rank;
-  const cornerSuit = card.rank === "JOKER" ? "★" : suitSymbol(card.suit);
+  const showWildFace = isJoker || playedWild;
+  const displayRank = showWildFace ? (asRank ?? "?") : card.rank;
+  const cornerSuit = showWildFace ? "★" : suitSymbol(card.suit);
+  const cornerRankColor = showWildFace ? WILD_PURPLE : rankColor;
 
   if (faceDown) {
     return (
@@ -127,11 +153,27 @@ function CardFace({
   return (
     <>
       <svg viewBox="0 0 56 78" className="h-full w-full" aria-hidden>
-        <rect width="56" height="78" rx="4" fill="#fffef8" />
-        <text x="8" y="16" fontSize="13" fontWeight="800" fill={rankColor}>
+        <defs>
+          <pattern id={`${patternId}-wild`} patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="6" stroke={WILD_AMBER} strokeWidth="1.5" opacity="0.18" />
+          </pattern>
+        </defs>
+        <rect
+          width="56"
+          height="78"
+          rx="4"
+          fill={showWildFace ? (isJoker ? "#f3e8ff" : "#fffbeb") : "#fffef8"}
+        />
+        {showWildFace ? (
+          <>
+            <rect width="56" height="78" rx="4" fill={`url(#${patternId}-wild)`} />
+            <rect x="2" y="2" width="4" height="74" rx="2" fill={WILD_AMBER} opacity="0.55" />
+          </>
+        ) : null}
+        <text x="8" y="16" fontSize="13" fontWeight="800" fill={cornerRankColor}>
           {displayRank}
         </text>
-        <text x="8" y="28" fontSize="11" fontWeight="700" fill={rankColor}>
+        <text x="8" y="28" fontSize="11" fontWeight="700" fill={showWildFace ? WILD_AMBER : rankColor}>
           {cornerSuit}
         </text>
         <CenterArt suit={card.suit} rank={card.rank} asRank={asRank} playedWild={playedWild} />
@@ -140,7 +182,7 @@ function CardFace({
           y="72"
           fontSize="13"
           fontWeight="800"
-          fill={rankColor}
+          fill={cornerRankColor}
           textAnchor="end"
           transform="rotate(180 48 72)"
         >
@@ -151,19 +193,23 @@ function CardFace({
           y="60"
           fontSize="11"
           fontWeight="700"
-          fill={rankColor}
+          fill={showWildFace ? WILD_AMBER : rankColor}
           textAnchor="end"
           transform="rotate(180 48 60)"
         >
           {cornerSuit}
         </text>
       </svg>
-      {playedWild && asRank ? (
+      {showWildFace && asRank ? (
         <span
-          className="absolute bottom-[3%] left-1/2 -translate-x-1/2 rounded bg-amber-500 px-[6%] font-bold text-amber-950"
-          style={{ fontSize: "11%" }}
+          className={`absolute left-1/2 -translate-x-1/2 rounded font-bold shadow-sm ${
+            displayOnly
+              ? "bottom-[2%] bg-amber-500 px-[8%] py-[1%] text-amber-950"
+              : "bottom-[3%] bg-amber-500 px-[6%] text-amber-950"
+          }`}
+          style={{ fontSize: displayOnly ? "13%" : "11%" }}
         >
-          as {asRank}
+          ★ {asRank}
         </span>
       ) : null}
     </>
@@ -190,14 +236,19 @@ export function PlayingCard({
   const playedWild = isPlayedAsWild(card, wildDeclarations);
   const interactive = Boolean(onClick) && !disabled && !displayOnly;
 
+  const showWildShell = playedWild || card.rank === "JOKER";
   const shellClasses = `relative shrink-0 overflow-visible rounded-lg border-2 bg-[#fffef8] shadow-md transition ${className} ${
     selected
-      ? "-translate-y-2 border-[var(--accent)] ring-2 ring-[var(--accent)]/50"
+      ? "border-[var(--accent)] ring-2 ring-[var(--accent)]/50"
       : highlighted
         ? "border-[var(--accent-soft)] ring-2 ring-[var(--accent)]/40"
-        : playedWild || isWildCard(card)
-          ? "border-amber-400"
-          : "border-[#d4cfc4]"
+        : showWildShell
+          ? displayOnly
+            ? "border-amber-500 ring-1 ring-amber-400/60"
+            : "border-amber-400"
+          : isWildCard(card)
+            ? "border-amber-400"
+            : "border-[#d4cfc4]"
   } ${interactive ? "cursor-pointer hover:-translate-y-1 hover:shadow-lg" : ""} ${
     disabled && !displayOnly ? "opacity-60" : ""
   }`;
@@ -211,6 +262,7 @@ export function PlayingCard({
       playedWild={playedWild}
       faceDown={faceDown}
       patternId={patternId}
+      displayOnly={displayOnly}
     />
   );
 

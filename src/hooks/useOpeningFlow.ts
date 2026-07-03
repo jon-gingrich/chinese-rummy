@@ -1,11 +1,16 @@
 "use client";
 
 import { useMutation } from "convex/react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { getContractForRound } from "../../convex/lib/rules/contracts";
-import { isJoker } from "../../convex/lib/rules/melds";
+import {
+  findValidWildRanksForOpeningMeld,
+  isJoker,
+  normalizeOpeningMeld,
+  validateOpeningMeld,
+} from "../../convex/lib/rules/melds";
 import type { Card, NaturalRank, OpeningMeld } from "../../convex/lib/rules/types";
 
 const NATURAL_RANKS: NaturalRank[] = [
@@ -44,9 +49,18 @@ export function useOpeningFlow({
 
   const requirements = useMemo(() => getContractForRound(roundNumber), [roundNumber]);
   const nextRequirement = requirements[pendingMelds.length];
-  const usedCardIds = new Set(pendingMelds.flatMap((meld) => meld.cards.map((card) => card.id)));
-  const availableHand = hand.filter((card) => !usedCardIds.has(card.id));
-  const selectedCards = availableHand.filter((card) => selectedIds.includes(card.id));
+  const usedCardIds = useMemo(
+    () => new Set(pendingMelds.flatMap((meld) => meld.cards.map((card) => card.id))),
+    [pendingMelds],
+  );
+  const availableHand = useMemo(
+    () => hand.filter((card) => !usedCardIds.has(card.id)),
+    [hand, usedCardIds],
+  );
+  const selectedCards = useMemo(
+    () => availableHand.filter((card) => selectedIds.includes(card.id)),
+    [availableHand, selectedIds],
+  );
 
   function toggleCard(cardId: string) {
     if (!nextRequirement || busy) {
@@ -63,18 +77,137 @@ export function useOpeningFlow({
     });
   }
 
-  function wildDeclarationsForSelection(): OpeningMeld["wildDeclarations"] {
-    return selectedCards.flatMap((card) => {
+  function wildDeclarationsForSelection(
+    cards: Card[],
+    ranks: Record<string, NaturalRank>,
+  ): OpeningMeld["wildDeclarations"] {
+    return cards.flatMap((card) => {
       if (isJoker(card)) {
-        const asRank = wildRanks[card.id];
+        const asRank = ranks[card.id];
         return asRank ? [{ cardId: card.id, asRank }] : [];
       }
-      if (card.rank === "2" && wildRanks[card.id] && wildRanks[card.id] !== "2") {
-        return [{ cardId: card.id, asRank: wildRanks[card.id]! }];
+      if (card.rank === "2" && ranks[card.id] && ranks[card.id] !== "2") {
+        return [{ cardId: card.id, asRank: ranks[card.id]! }];
       }
       return [];
     });
   }
+
+  function currentWildRank(card: Card, ranks: Record<string, NaturalRank>): NaturalRank | undefined {
+    if (isJoker(card)) {
+      return ranks[card.id];
+    }
+    if (card.rank === "2") {
+      return ranks[card.id] ?? "2";
+    }
+    return undefined;
+  }
+
+  useEffect(() => {
+    if (!nextRequirement || selectedIds.length !== nextRequirement.size) {
+      return;
+    }
+
+    setWildRanks((current) => {
+      let next: Record<string, NaturalRank> | null = null;
+
+      for (const card of selectedCards) {
+        if (!isJoker(card) && card.rank !== "2") {
+          continue;
+        }
+
+        const otherDeclarations = wildDeclarationsForSelection(
+          selectedCards.filter((entry) => entry.id !== card.id),
+          current,
+        );
+        const validRanks = findValidWildRanksForOpeningMeld(
+          nextRequirement.kind,
+          selectedCards,
+          card,
+          otherDeclarations,
+        );
+        const chosenRank = currentWildRank(card, current);
+
+        if (chosenRank && validRanks.includes(chosenRank)) {
+          continue;
+        }
+
+        if (validRanks.length === 1) {
+          if (!next) {
+            next = { ...current };
+          }
+          next[card.id] = validRanks[0]!;
+        }
+      }
+
+      return next ?? current;
+    });
+  }, [nextRequirement, selectedIds, availableHand]);
+
+  function buildMeldFromSelection(): OpeningMeld | null {
+    if (!nextRequirement || selectedCards.length !== nextRequirement.size) {
+      return null;
+    }
+
+    return normalizeOpeningMeld({
+      kind: nextRequirement.kind,
+      cards: selectedCards,
+      wildDeclarations: wildDeclarationsForSelection(selectedCards, wildRanks),
+    });
+  }
+
+  const selectionValidation = useMemo(() => {
+    if (!nextRequirement) {
+      return { canAdd: false, error: null as string | null };
+    }
+    if (selectedCards.length !== nextRequirement.size) {
+      return { canAdd: false, error: null };
+    }
+
+    for (const card of selectedCards) {
+      if (isJoker(card) && !wildRanks[card.id]) {
+        return { canAdd: false, error: "Declare a rank for each joker." };
+      }
+
+      if (card.rank === "2" && nextRequirement.kind === "run") {
+        const otherDeclarations = wildDeclarationsForSelection(
+          selectedCards.filter((entry) => entry.id !== card.id),
+          wildRanks,
+        );
+        const validRanks = findValidWildRanksForOpeningMeld(
+          nextRequirement.kind,
+          selectedCards,
+          card,
+          otherDeclarations,
+        );
+        const chosenRank = currentWildRank(card, wildRanks);
+        if (chosenRank && !validRanks.includes(chosenRank)) {
+          return {
+            canAdd: false,
+            error: "That 2 cannot play as a natural card in this run. Pick the rank it substitutes.",
+          };
+        }
+        if (
+          chosenRank === "2" &&
+          validRanks.some((rank) => rank !== "2") &&
+          !validRanks.includes("2")
+        ) {
+          return {
+            canAdd: false,
+            error: "This run needs the 2 played as a wild. Pick the rank it substitutes.",
+          };
+        }
+      }
+    }
+
+    const meld = buildMeldFromSelection();
+    if (!meld) {
+      return { canAdd: false, error: null };
+    }
+
+    const error = validateOpeningMeld(meld);
+    return { canAdd: error === null, error };
+  }, [nextRequirement, selectedCards, wildRanks]);
 
   function addMeld() {
     if (!nextRequirement) {
@@ -85,20 +218,43 @@ export function useOpeningFlow({
       return;
     }
 
-    for (const card of selectedCards) {
-      if (isJoker(card) && !wildRanks[card.id]) {
-        onStatus("Declare a rank for each joker.");
-        return;
-      }
+    const meld = buildMeldFromSelection();
+    if (!meld) {
+      return;
     }
 
-    const meld: OpeningMeld = {
-      kind: nextRequirement.kind,
-      cards: selectedCards,
-      wildDeclarations: wildDeclarationsForSelection(),
-    };
+    const validationError = validateOpeningMeld(meld);
+    if (validationError) {
+      onStatus(validationError);
+      return;
+    }
 
     setPendingMelds((current) => [...current, meld]);
+    setSelectedIds([]);
+    setWildRanks({});
+    onStatus(null);
+  }
+
+  function removePendingMeldsFrom(index: number) {
+    if (busy || index < 0) {
+      return;
+    }
+    setPendingMelds((current) => {
+      if (index >= current.length) {
+        return current;
+      }
+      return current.slice(0, index);
+    });
+    setSelectedIds([]);
+    setWildRanks({});
+    onStatus(null);
+  }
+
+  function undoLastMeld() {
+    if (busy) {
+      return;
+    }
+    setPendingMelds((current) => (current.length === 0 ? current : current.slice(0, -1)));
     setSelectedIds([]);
     setWildRanks({});
     onStatus(null);
@@ -142,11 +298,15 @@ export function useOpeningFlow({
     setWildRanks,
     wildCardsNeedingRank,
     naturalRanks: NATURAL_RANKS,
+    canAddMeld: selectionValidation.canAdd,
+    selectionValidationError: selectionValidation.error,
     busy,
     showConfirm,
     setShowConfirm,
     toggleCard,
     addMeld,
+    undoLastMeld,
+    removePendingMeldsFrom,
     submitOpening,
     progressLabel: nextRequirement
       ? `${nextRequirement.kind} ${pendingMelds.length + 1} of ${requirements.length} — pick ${nextRequirement.size} cards`

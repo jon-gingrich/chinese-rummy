@@ -20,6 +20,7 @@ import {
   legalActionsValidator,
   openingMeldValidator,
   tableViewValidator,
+  wildDeclarationValidator,
   wildRelocationValidator,
 } from "./lib/rules/validators";
 
@@ -263,6 +264,7 @@ export const layOff = mutation({
     card: cardValidator,
     replaceWildCardId: v.optional(v.string()),
     relocation: v.optional(wildRelocationValidator),
+    wildDeclaration: v.optional(wildDeclarationValidator),
   },
   returns: actionResultValidator,
   handler: async (ctx, args) => {
@@ -279,6 +281,7 @@ export const layOff = mutation({
         card: args.card,
         replaceWildCardId: args.replaceWildCardId,
         relocation: args.relocation,
+        wildDeclaration: args.wildDeclaration,
       },
       user._id,
     );

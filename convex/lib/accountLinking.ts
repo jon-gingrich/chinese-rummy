@@ -1,7 +1,9 @@
 import { getAuthSessionId } from "@convex-dev/auth/server";
-import type { Doc, Id } from "../_generated/dataModel";
-import type { MutationCtx } from "../_generated/server";
+import type { GenericMutationCtx } from "convex/server";
+import type { DataModel, Doc, Id } from "../_generated/dataModel";
 import type { GameState } from "./rules";
+
+type UserMutationCtx = GenericMutationCtx<DataModel>;
 
 type CreateOrUpdateUserArgs = {
   existingUserId: Id<"users"> | null;
@@ -48,7 +50,7 @@ function profileUserData(args: CreateOrUpdateUserArgs) {
   };
 }
 
-async function uniqueUserWithVerifiedEmail(ctx: MutationCtx, email: string) {
+async function uniqueUserWithVerifiedEmail(ctx: UserMutationCtx, email: string) {
   const users = await ctx.db
     .query("users")
     .withIndex("email", (q) => q.eq("email", email))
@@ -57,7 +59,7 @@ async function uniqueUserWithVerifiedEmail(ctx: MutationCtx, email: string) {
   return users.length === 1 ? users[0] : null;
 }
 
-async function sessionUserId(ctx: MutationCtx): Promise<Id<"users"> | null> {
+async function sessionUserId(ctx: UserMutationCtx): Promise<Id<"users"> | null> {
   const sessionId = await getAuthSessionId(ctx);
   if (!sessionId) {
     return null;
@@ -66,7 +68,7 @@ async function sessionUserId(ctx: MutationCtx): Promise<Id<"users"> | null> {
   return session?.userId ?? null;
 }
 
-async function anonymousSessionUserId(ctx: MutationCtx): Promise<Id<"users"> | null> {
+async function anonymousSessionUserId(ctx: UserMutationCtx): Promise<Id<"users"> | null> {
   const userId = await sessionUserId(ctx);
   if (!userId) {
     return null;
@@ -79,7 +81,7 @@ async function anonymousSessionUserId(ctx: MutationCtx): Promise<Id<"users"> | n
 }
 
 export async function createOrUpdateUser(
-  ctx: MutationCtx,
+  ctx: UserMutationCtx,
   args: CreateOrUpdateUserArgs,
 ): Promise<Id<"users">> {
   if (args.type === "credentials" && args.provider.id === "anonymous") {
@@ -139,7 +141,7 @@ function replaceUserIdInGameState(state: GameState, fromUserId: string, toUserId
 }
 
 export async function mergeGuestUserData(
-  ctx: MutationCtx,
+  ctx: UserMutationCtx,
   args: { guestUserId: Id<"users">; targetUserId: Id<"users"> },
 ) {
   if (args.guestUserId === args.targetUserId) {

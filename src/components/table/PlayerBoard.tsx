@@ -31,6 +31,7 @@ type PlayerBoardProps = {
   pendingMelds?: OpeningMeld[];
   highlightMeldIds?: Set<string>;
   onMeldClick?: (meldId: string) => void;
+  onPendingMeldClick?: (index: number) => void;
   isMe?: boolean;
 };
 
@@ -41,6 +42,7 @@ export function PlayerBoard({
   pendingMelds = [],
   highlightMeldIds = new Set(),
   onMeldClick,
+  onPendingMeldClick,
   isMe = false,
 }: PlayerBoardProps) {
   const allMelds = [
@@ -81,15 +83,28 @@ export function PlayerBoard({
         >
           {allMelds.map((meld) => {
             const isPending = meld.id.startsWith("pending-");
+            const pendingIndex = isPending ? Number(meld.id.slice("pending-".length)) : -1;
             const highlighted = !isPending && highlightMeldIds.has(meld.id);
+            const canRemovePending = isPending && onPendingMeldClick !== undefined;
             return (
-              <div key={meld.id} className={isPending ? "rounded-lg ring-2 ring-dashed ring-[var(--accent)]/50" : ""}>
+              <div
+                key={meld.id}
+                className={
+                  isPending
+                    ? "rounded-lg ring-2 ring-dashed ring-[var(--accent)]/50"
+                    : ""
+                }
+              >
                 <MeldSpread
                   meld={meld}
                   size="lg"
                   highlighted={highlighted}
                   onClick={
-                    !isPending && onMeldClick ? () => onMeldClick(meld.id) : undefined
+                    canRemovePending
+                      ? () => onPendingMeldClick(pendingIndex)
+                      : !isPending && onMeldClick
+                        ? () => onMeldClick(meld.id)
+                        : undefined
                   }
                 />
               </div>

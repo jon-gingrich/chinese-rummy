@@ -109,3 +109,42 @@ export function fanTranslateY(index: number, total: number): number {
   const rotation = Math.abs(fanRotation(index, total));
   return rotation * 0.35;
 }
+
+/** Extra horizontal gap opened beside selected cards so neighbors stay tappable. */
+export const FAN_SELECTION_SPREAD_PX = 14;
+
+/** Vertical lift applied to a selected card in the fan. */
+export const FAN_SELECTED_LIFT_PX = 8;
+
+export function fanMarginExtra(
+  index: number,
+  selectedIndices: ReadonlySet<number>,
+  spreadPx = FAN_SELECTION_SPREAD_PX,
+): number {
+  if (index === 0) {
+    return 0;
+  }
+  const half = spreadPx / 2;
+  const prevSelected = selectedIndices.has(index - 1);
+  const currentSelected = selectedIndices.has(index);
+
+  if (prevSelected && currentSelected) {
+    return 0;
+  }
+  if (currentSelected || prevSelected) {
+    return half;
+  }
+  return 0;
+}
+
+export function fanTotalSpreadWidth(
+  cardCount: number,
+  selectedIndices: ReadonlySet<number>,
+  spreadPx = FAN_SELECTION_SPREAD_PX,
+): number {
+  let total = 0;
+  for (let index = 1; index < cardCount; index++) {
+    total += fanMarginExtra(index, selectedIndices, spreadPx);
+  }
+  return total;
+}
