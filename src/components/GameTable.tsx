@@ -23,7 +23,7 @@ import { useOpeningFlow } from "../hooks/useOpeningFlow";
 import { usePlayerPreferences } from "../contexts/PlayerPreferencesContext";
 
 export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
-  const { preferences, updatePreferences, isLoading: preferencesLoading } = usePlayerPreferences();
+  const { preferences, updatePreferences } = usePlayerPreferences();
   const viewer = useQuery(api.users.viewer);
   const table = useQuery(api.games.getGame, { roomId });
   const hand = useQuery(api.games.getMyHand, { roomId });
@@ -74,7 +74,6 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
   useEffect(() => {
     if (
       howToPlayAutoShown ||
-      preferencesLoading ||
       viewer === undefined ||
       viewer === null ||
       table === null ||
@@ -86,7 +85,7 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
       setShowHowToPlay(true);
     }
     setHowToPlayAutoShown(true);
-  }, [howToPlayAutoShown, preferences.hasSeenHowToPlay, preferencesLoading, table, viewer]);
+  }, [howToPlayAutoShown, preferences.hasSeenHowToPlay, table, viewer]);
 
   async function handleCloseHowToPlay() {
     setShowHowToPlay(false);
