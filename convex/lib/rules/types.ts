@@ -35,7 +35,13 @@ export type WildDeclaration = {
 
 export type PlayerPhase = "notOpened" | "opened";
 
-export type TurnPhase = "draw" | "discard";
+export type TurnPhase = "draw" | "discard" | "rummyWindow";
+
+export type RummyWindow = {
+  discarderId: string;
+  discardedCard: Card;
+  wouldGoOut: boolean;
+};
 
 export type GamePhase = "playing" | "roundEnd" | "gameEnd";
 
@@ -86,6 +92,8 @@ export type GameState = {
   discard: Card[];
   melds: TableMeld[];
   cumulativeScores: number[];
+  rummyPenaltyCounts: Record<string, number>;
+  rummyWindow?: RummyWindow;
   lastRoundSummary?: RoundSummary;
   winnerPlayerIds?: string[];
 };
@@ -140,6 +148,8 @@ export type LegalActions = {
   canDiscard: boolean;
   discardableCards: Card[];
   layOffTargets: LayOffTarget[];
+  canCallRummy: boolean;
+  canTakeBackDiscard: boolean;
 };
 
 export type ApplyActionResult = {

@@ -10,6 +10,7 @@ import { formatCardLabel, sortHand, type HandSortMode } from "../lib/cards";
 import { CardFan } from "./CardFan";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { RulesReference } from "./RulesReference";
+import { HowToPlayOverlay } from "./table/HowToPlayOverlay";
 import { ActionDock, WildRankPicker } from "./table/ActionDock";
 import { FeltSurface } from "./table/FeltSurface";
 import { layoutPlayers, PlayerBoard } from "./table/PlayerBoard";
@@ -22,18 +23,22 @@ import { useOpeningFlow } from "../hooks/useOpeningFlow";
 import { usePlayerPreferences } from "../contexts/PlayerPreferencesContext";
 
 export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
-  const { preferences } = usePlayerPreferences();
+  const { preferences, updatePreferences } = usePlayerPreferences();
   const viewer = useQuery(api.users.viewer);
   const table = useQuery(api.games.getGame, { roomId });
   const hand = useQuery(api.games.getMyHand, { roomId });
   const legalActions = useQuery(api.games.getLegalActions, { roomId });
   const draw = useMutation(api.games.draw);
   const discard = useMutation(api.games.discard);
+  const callRummy = useMutation(api.games.callRummy);
+  const takeBackDiscard = useMutation(api.games.takeBackDiscard);
   const continueRound = useMutation(api.games.continueRound);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [handSortMode, setHandSortMode] = useState<HandSortMode>("suit");
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  const [showHowToPlay, setShowHowToPlay] = useState(false);
+  const [howToPlayAutoShown, setHowToPlayAutoShown] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [handMode, setHandMode] = useState<"discard" | "opening">("discard");
@@ -47,6 +52,9 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
     myPlayer?.playerPhase === "notOpened" &&
     legalActions?.canOpen;
   const isOpeningHandMode = canOpen && handMode === "opening";
+  const canCallRummy = legalActions?.canCallRummy ?? false;
+  const canTakeBackDiscard = legalActions?.canTakeBackDiscard ?? false;
+  const isRummyWindow = table?.turnPhase === "rummyWindow";
   const canLayOff =
     isMyTurn && table?.turnPhase === "discard" && (legalActions?.canLayOff ?? false);
 
@@ -62,6 +70,27 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
       setHandMode("discard");
     }
   }, [canOpen]);
+
+  useEffect(() => {
+    if (howToPlayAutoShown || viewer === undefined || table === null || table === undefined) {
+      return;
+    }
+    if (!preferences.hasSeenHowToPlay) {
+      setShowHowToPlay(true);
+    }
+    setHowToPlayAutoShown(true);
+  }, [howToPlayAutoShown, preferences.hasSeenHowToPlay, table, viewer]);
+
+  async function handleCloseHowToPlay() {
+    setShowHowToPlay(false);
+    if (!preferences.hasSeenHowToPlay) {
+      try {
+        await updatePreferences({ hasSeenHowToPlay: true });
+      } catch {
+        setStatus("Could not save tutorial progress.");
+      }
+    }
+  }
 
   const sortedHand = useMemo(
     () => (hand ? sortHand(hand, handSortMode) : []),
@@ -130,7 +159,19 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
     }
     if (!isMyTurn) {
       const active = table.players.find((player) => player.isActive);
+      if (isRummyWindow && canCallRummy) {
+        return "Playable discard — call rummy?";
+      }
+      if (isRummyWindow && canTakeBackDiscard) {
+        return "Take back your discard before someone calls rummy";
+      }
       return `Waiting for ${active?.displayName ?? "next player"}…`;
+    }
+    if (isRummyWindow && canTakeBackDiscard) {
+      return "Take back your discard or wait for the next player";
+    }
+    if (isRummyWindow) {
+      return "Rummy window — draw to continue";
     }
     if (table.turnPhase === "draw") {
       return "Your turn — draw from stock or discard";
@@ -151,7 +192,39 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
         : "Select a card to lay off";
     }
     return selectedCardId ? "Discard selected card" : "Select a card to discard";
-  }, [table, isMyTurn, canOpen, isOpeningHandMode, canLayOff, selectedCardId, opening.nextRequirement, opening.progressLabel]);
+  }, [table, isMyTurn, canOpen, isOpeningHandMode, canLayOff, selectedCardId, opening.nextRequirement, opening.progressLabel, isRummyWindow, canCallRummy, canTakeBackDiscard]);
+
+  async function handleCallRummy() {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const result = await callRummy({ roomId });
+      if (result.error) {
+        setStatus(result.error);
+      }
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Rummy call failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleTakeBackDiscard() {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const result = await takeBackDiscard({ roomId });
+      if (result.error) {
+        setStatus(result.error);
+      } else {
+        setSelectedCardId(null);
+      }
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Take back failed");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function handleDraw(source: "stock" | "discard") {
     setBusy(true);
@@ -284,6 +357,7 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col rounded-2xl">
       <RulesReference open={showRules} onClose={() => setShowRules(false)} />
+      <HowToPlayOverlay open={showHowToPlay} onClose={() => void handleCloseHowToPlay()} />
 
       <ConfirmDialog
         open={showDiscardConfirm}
@@ -330,6 +404,7 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
         isMyTurn={isMyTurn && table.phase === "playing"}
         players={table.players}
         onRulesClick={() => setShowRules(true)}
+        onHowToPlayClick={() => setShowHowToPlay(true)}
         settingsHref={`/home/settings?returnTo=${encodeURIComponent(`/room/${roomId}`)}`}
       />
 
@@ -471,6 +546,46 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
               }
             >
               <p className="text-xs text-[var(--muted)]">All contract melds are built on your board.</p>
+            </ActionDock>
+          ) : null}
+
+          {isRummyWindow && canCallRummy ? (
+            <ActionDock
+              title="Rummy!"
+              actions={
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void handleCallRummy()}
+                  className="game-btn-primary text-xs"
+                >
+                  Call rummy
+                </button>
+              }
+            >
+              <p className="text-xs text-[var(--muted)]">
+                That discard fits a meld on the table.
+              </p>
+            </ActionDock>
+          ) : null}
+
+          {isRummyWindow && canTakeBackDiscard ? (
+            <ActionDock
+              title="Playable discard"
+              actions={
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void handleTakeBackDiscard()}
+                  className="game-btn-secondary text-xs"
+                >
+                  Take back
+                </button>
+              }
+            >
+              <p className="text-xs text-[var(--muted)]">
+                Return the card to your hand before an opponent calls rummy.
+              </p>
             </ActionDock>
           ) : null}
 

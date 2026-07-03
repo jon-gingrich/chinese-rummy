@@ -94,6 +94,7 @@ const preferencesPatchValidator = v.object({
   confirmBeforeOpening: v.optional(v.boolean()),
   cardScale: v.optional(playerPreferencesFields.cardScale),
   uiScale: v.optional(playerPreferencesFields.uiScale),
+  hasSeenHowToPlay: v.optional(v.boolean()),
 });
 
 export const updatePreferences = mutation({

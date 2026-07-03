@@ -3,6 +3,15 @@ import { allContractsFulfilled, advanceContractRound } from "./contracts";
 import { normalizeOpeningMeld, validateOpeningMelds } from "./melds";
 import { findLayOffTargets, applyLayOff, validateLayOff } from "./layoffs";
 import {
+  discardableHandCards,
+  incrementRummyPenaltyCount,
+  isPlayableDiscard,
+  isStuckWildCard,
+  isUndiscardable,
+  rummyPenaltyCount,
+  takePickupCards,
+} from "./rummy";
+import {
   gameComplete,
   lowestScoreWinnerIds,
   scoreRound,
@@ -10,6 +19,7 @@ import {
 import type {
   Action,
   ApplyActionResult,
+  Card,
   CreateGameConfig,
   GameState,
   LegalActions,
@@ -86,6 +96,104 @@ function cardsOwnedByPlayer(hand: PlayerState["hand"], melds: OpeningMeld[]): st
   }
 
   return null;
+}
+
+const EMPTY_LEGAL_ACTIONS: LegalActions = {
+  canDrawFromStock: false,
+  canDrawFromDiscard: false,
+  canOpen: false,
+  canLayOff: false,
+  canDiscard: false,
+  discardableCards: [],
+  layOffTargets: [],
+  canCallRummy: false,
+  canTakeBackDiscard: false,
+};
+
+function applyRummyPickup(
+  state: GameState,
+  offenderId: string,
+): { state: GameState } | { error: string } {
+  const playerIndex = state.players.findIndex((entry) => entry.id === offenderId);
+  if (playerIndex === -1) {
+    return { error: "Player not found" };
+  }
+
+  const offenseIndex = rummyPenaltyCount(state, offenderId);
+  const counts = state.rummyPenaltyCounts ?? {};
+  const { picked, remaining } = takePickupCards(state.discard, offenseIndex);
+  if (picked.length === 0) {
+    return { error: "Discard pile is empty" };
+  }
+
+  const players = [...state.players];
+  const player = players[playerIndex]!;
+  players[playerIndex] = {
+    ...player,
+    hand: [...player.hand, ...picked],
+  };
+
+  return {
+    state: {
+      ...state,
+      players,
+      discard: remaining,
+      rummyPenaltyCounts: incrementRummyPenaltyCount(counts, offenderId),
+      activeSeatIndex: player.seatIndex,
+      turnPhase: "discard",
+      rummyWindow: undefined,
+    },
+  };
+}
+
+function completeDiscard(
+  state: GameState,
+  playerIndex: number,
+  playerId: string,
+  card: Card,
+  nextHand: PlayerState["hand"],
+): ApplyActionResult {
+  const players = [...state.players];
+  const player = players[playerIndex]!;
+  players[playerIndex] = {
+    ...player,
+    openedThisTurn: false,
+    hand: nextHand,
+  };
+
+  const discardedState: GameState = {
+    ...state,
+    players,
+    discard: [...state.discard, card],
+  };
+  const wouldGoOut = nextHand.length === 0;
+
+  if (isPlayableDiscard(card, state.melds)) {
+    return {
+      state: {
+        ...discardedState,
+        activeSeatIndex: nextSeatClockwise(state, state.activeSeatIndex),
+        turnPhase: "rummyWindow",
+        rummyWindow: {
+          discarderId: playerId,
+          discardedCard: card,
+          wouldGoOut,
+        },
+      },
+    };
+  }
+
+  const advancedState: GameState = {
+    ...discardedState,
+    activeSeatIndex: nextSeatClockwise(state, state.activeSeatIndex),
+    turnPhase: "draw",
+  };
+
+  if (wouldGoOut) {
+    return { state: finishRound(advancedState, playerId) };
+  }
+
+  return { state: advancedState };
 }
 
 const GO_OUT_ERROR = "Must discard to go out";
@@ -171,6 +279,7 @@ export function createGame(config: CreateGameConfig): GameState {
     discard: [],
     melds: [],
     cumulativeScores: players.map(() => 0),
+    rummyPenaltyCounts: {},
   };
 }
 
@@ -219,6 +328,7 @@ export function startRound(state: GameState, options: ShuffleOptions = {}): Game
     stock: remainingStock,
     discard: [],
     melds: [],
+    rummyWindow: undefined,
     lastRoundSummary: undefined,
     winnerPlayerIds: undefined,
   };
@@ -236,53 +346,41 @@ export function continueToNextRound(state: GameState): GameState {
 
 export function legalActions(state: GameState, playerId: string): LegalActions {
   if (state.phase !== "playing" || state.roundPhase !== "active") {
-    return {
-      canDrawFromStock: false,
-      canDrawFromDiscard: false,
-      canOpen: false,
-      canLayOff: false,
-      canDiscard: false,
-      discardableCards: [],
-      layOffTargets: [],
-    };
-  }
-
-  if (!isActivePlayer(state, playerId)) {
-    return {
-      canDrawFromStock: false,
-      canDrawFromDiscard: false,
-      canOpen: false,
-      canLayOff: false,
-      canDiscard: false,
-      discardableCards: [],
-      layOffTargets: [],
-    };
+    return { ...EMPTY_LEGAL_ACTIONS };
   }
 
   const player = findPlayer(state, playerId);
   if (!player) {
+    return { ...EMPTY_LEGAL_ACTIONS };
+  }
+
+  if (state.turnPhase === "rummyWindow" && state.rummyWindow) {
+    const window = state.rummyWindow;
+    const isDiscarder = playerId === window.discarderId;
+    const isNextPlayer = player.seatIndex === state.activeSeatIndex;
+
     return {
-      canDrawFromStock: false,
-      canDrawFromDiscard: false,
-      canOpen: false,
-      canLayOff: false,
-      canDiscard: false,
-      discardableCards: [],
-      layOffTargets: [],
+      ...EMPTY_LEGAL_ACTIONS,
+      canDrawFromStock:
+        isNextPlayer && (state.stock.length > 0 || state.discard.length > 1),
+      canDrawFromDiscard: isNextPlayer && state.discard.length > 0,
+      canCallRummy:
+        !isDiscarder && isPlayableDiscard(window.discardedCard, state.melds),
+      canTakeBackDiscard: isDiscarder,
     };
+  }
+
+  if (!isActivePlayer(state, playerId)) {
+    return { ...EMPTY_LEGAL_ACTIONS };
   }
 
   if (state.turnPhase === "draw") {
     const canDrawFromStock =
       state.stock.length > 0 || state.discard.length > 1;
     return {
+      ...EMPTY_LEGAL_ACTIONS,
       canDrawFromStock,
       canDrawFromDiscard: state.discard.length > 0,
-      canOpen: false,
-      canLayOff: false,
-      canDiscard: false,
-      discardableCards: [],
-      layOffTargets: [],
     };
   }
 
@@ -294,12 +392,11 @@ export function legalActions(state: GameState, playerId: string): LegalActions {
   );
 
   return {
-    canDrawFromStock: false,
-    canDrawFromDiscard: false,
+    ...EMPTY_LEGAL_ACTIONS,
     canOpen: player.playerPhase === "notOpened",
     canLayOff: layOffTargets.length > 0,
     canDiscard: true,
-    discardableCards: [...player.hand],
+    discardableCards: discardableHandCards(player.hand),
     layOffTargets,
   };
 }
@@ -319,17 +416,36 @@ export function applyAction(
   }
 
   if (action.kind === "draw") {
-    if (state.turnPhase !== "draw") {
+    let workingState = state;
+
+    if (workingState.turnPhase === "rummyWindow") {
+      if (!isActivePlayer(workingState, playerId)) {
+        return { state, error: "Not your turn" };
+      }
+
+      const window = workingState.rummyWindow!;
+      workingState = {
+        ...workingState,
+        rummyWindow: undefined,
+        turnPhase: "draw",
+      };
+
+      if (window.wouldGoOut) {
+        return { state: finishRound(workingState, window.discarderId) };
+      }
+    }
+
+    if (workingState.turnPhase !== "draw") {
       return { state, error: "Already drew this turn" };
     }
 
     if (action.source === "discard") {
-      if (state.discard.length === 0) {
+      if (workingState.discard.length === 0) {
         return { state, error: "Discard pile is empty" };
       }
 
-      const drawn = state.discard[state.discard.length - 1]!;
-      const players = [...state.players];
+      const drawn = workingState.discard[workingState.discard.length - 1]!;
+      const players = [...workingState.players];
       const player = players[playerIndex]!;
       players[playerIndex] = {
         ...player,
@@ -338,15 +454,14 @@ export function applyAction(
 
       return {
         state: {
-          ...state,
+          ...workingState,
           players,
-          discard: state.discard.slice(0, -1),
+          discard: workingState.discard.slice(0, -1),
           turnPhase: "discard",
         },
       };
     }
 
-    let workingState = state;
     if (workingState.stock.length === 0) {
       const reshuffled = reshuffleStockFromDiscard(workingState);
       if ("error" in reshuffled) {
@@ -451,7 +566,28 @@ export function applyAction(
     }
 
     if (wouldMeldOut(player.hand, [action.card.id])) {
-      return { state, error: GO_OUT_ERROR };
+      if (!isStuckWildCard(action.card)) {
+        return { state, error: GO_OUT_ERROR };
+      }
+
+      const players = [...state.players];
+      players[playerIndex] = {
+        ...player,
+        hand: removeCardsFromHand(player.hand, [action.card.id]),
+      };
+
+      const afterLayOff: GameState = {
+        ...state,
+        players,
+        melds: result.melds,
+      };
+
+      const pickupResult = applyRummyPickup(afterLayOff, playerId);
+      if ("error" in pickupResult) {
+        return { state, error: pickupResult.error };
+      }
+
+      return { state: pickupResult.state };
     }
 
     const players = [...state.players];
@@ -479,28 +615,72 @@ export function applyAction(
       return { state, error: "Card not in hand" };
     }
 
-    const players = [...state.players];
-    const nextHand = removeCardsFromHand(player.hand, [action.card.id]);
-    players[playerIndex] = {
-      ...player,
-      openedThisTurn: false,
-      hand: nextHand,
-    };
-
-    const nextState: GameState = {
-      ...state,
-      players,
-      discard: [...state.discard, action.card],
-      activeSeatIndex: nextSeatClockwise(state, state.activeSeatIndex),
-      turnPhase: "draw",
-    };
-
-    if (nextHand.length === 0) {
-      return { state: finishRound(nextState, playerId) };
+    if (isUndiscardable(action.card)) {
+      return { state, error: "Jokers and twos cannot be discarded" };
     }
 
-    return { state: nextState };
+    const nextHand = removeCardsFromHand(player.hand, [action.card.id]);
+    return completeDiscard(state, playerIndex, playerId, action.card, nextHand);
   }
 
   return { state, error: "Unknown action" };
+}
+
+export function applyCallRummy(state: GameState, callerId: string): ApplyActionResult {
+  if (state.turnPhase !== "rummyWindow" || !state.rummyWindow) {
+    return { state, error: "No rummy window is open" };
+  }
+
+  if (!state.players.some((entry) => entry.id === callerId)) {
+    return { state, error: "Player not found" };
+  }
+
+  if (callerId === state.rummyWindow.discarderId) {
+    return { state, error: "Cannot call rummy on your own discard" };
+  }
+
+  if (!isPlayableDiscard(state.rummyWindow.discardedCard, state.melds)) {
+    return { state, error: "Discard is not playable" };
+  }
+
+  const pickupResult = applyRummyPickup(state, state.rummyWindow.discarderId);
+  if ("error" in pickupResult) {
+    return { state, error: pickupResult.error };
+  }
+
+  return { state: pickupResult.state };
+}
+
+export function applyTakeBackDiscard(state: GameState, playerId: string): ApplyActionResult {
+  if (state.turnPhase !== "rummyWindow" || !state.rummyWindow) {
+    return { state, error: "No rummy window is open" };
+  }
+
+  if (playerId !== state.rummyWindow.discarderId) {
+    return { state, error: "Only the discarder can take back" };
+  }
+
+  const playerIndex = state.players.findIndex((entry) => entry.id === playerId);
+  if (playerIndex === -1) {
+    return { state, error: "Player not found" };
+  }
+
+  const player = state.players[playerIndex]!;
+  const card = state.rummyWindow.discardedCard;
+  const players = [...state.players];
+  players[playerIndex] = {
+    ...player,
+    hand: [...player.hand, card],
+  };
+
+  return {
+    state: {
+      ...state,
+      players,
+      discard: state.discard.slice(0, -1),
+      activeSeatIndex: player.seatIndex,
+      turnPhase: "discard",
+      rummyWindow: undefined,
+    },
+  };
 }

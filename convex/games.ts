@@ -11,7 +11,7 @@ import {
   touchGameParticipants,
 } from "./lib/games";
 import { getCurrentUser } from "./lib/auth";
-import { applyAction, continueToNextRound, legalActions } from "./lib/rules";
+import { applyAction, applyCallRummy, applyTakeBackDiscard, continueToNextRound, legalActions } from "./lib/rules";
 import type { GameState } from "./lib/rules";
 import { effectiveContractRound, formatContract } from "./lib/rules/contracts";
 import {
@@ -246,6 +246,48 @@ export const open = mutation({
     assertPlayerInGame(state, user._id);
 
     const result = applyAction(state, { kind: "open", melds: args.melds }, user._id);
+
+    return await persistAndRespond(
+      ctx,
+      game._id,
+      result.state,
+      user._id,
+      result.error,
+    );
+  },
+});
+
+export const callRummy = mutation({
+  args: { roomId: v.id("rooms") },
+  returns: actionResultValidator,
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    const { game } = await getGameForRoom(ctx, args.roomId);
+    const state = game.state as GameState;
+    assertPlayerInGame(state, user._id);
+
+    const result = applyCallRummy(state, user._id);
+
+    return await persistAndRespond(
+      ctx,
+      game._id,
+      result.state,
+      user._id,
+      result.error,
+    );
+  },
+});
+
+export const takeBackDiscard = mutation({
+  args: { roomId: v.id("rooms") },
+  returns: actionResultValidator,
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    const { game } = await getGameForRoom(ctx, args.roomId);
+    const state = game.state as GameState;
+    assertPlayerInGame(state, user._id);
+
+    const result = applyTakeBackDiscard(state, user._id);
 
     return await persistAndRespond(
       ctx,

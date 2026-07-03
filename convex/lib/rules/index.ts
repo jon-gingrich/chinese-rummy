@@ -1,5 +1,7 @@
 export {
   applyAction,
+  applyCallRummy,
+  applyTakeBackDiscard,
   continueToNextRound,
   createGame,
   legalActions,
@@ -38,7 +40,15 @@ export type {
   Suit,
   TableMeld,
   TurnPhase,
+  RummyWindow,
   WildDeclaration,
   WildRelocation,
 } from "./types";
 export { findLayOffTargets, applyLayOff } from "./layoffs";
+export {
+  discardableHandCards,
+  isPlayableDiscard,
+  isStuckWildCard,
+  isUndiscardable,
+  rummyPenaltyCount,
+} from "./rummy";

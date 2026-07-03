@@ -104,6 +104,12 @@ export const roundSummaryValidator = v.object({
   cumulativeScores: v.array(v.number()),
 });
 
+export const rummyWindowValidator = v.object({
+  discarderId: v.string(),
+  discardedCard: cardValidator,
+  wouldGoOut: v.boolean(),
+});
+
 export const gameStateValidator = v.object({
   phase: v.union(v.literal("playing"), v.literal("roundEnd"), v.literal("gameEnd")),
   roundNumber: v.number(),
@@ -111,11 +117,13 @@ export const gameStateValidator = v.object({
   players: v.array(playerStateValidator),
   dealerSeatIndex: v.number(),
   activeSeatIndex: v.number(),
-  turnPhase: v.union(v.literal("draw"), v.literal("discard")),
+  turnPhase: v.union(v.literal("draw"), v.literal("discard"), v.literal("rummyWindow")),
   stock: v.array(cardValidator),
   discard: v.array(cardValidator),
   melds: v.array(tableMeldValidator),
   cumulativeScores: v.array(v.number()),
+  rummyPenaltyCounts: v.optional(v.record(v.string(), v.number())),
+  rummyWindow: v.optional(rummyWindowValidator),
   lastRoundSummary: v.optional(roundSummaryValidator),
   winnerPlayerIds: v.optional(v.array(v.string())),
 });
@@ -128,6 +136,8 @@ export const legalActionsValidator = v.object({
   canDiscard: v.boolean(),
   discardableCards: v.array(cardValidator),
   layOffTargets: v.array(layOffTargetValidator),
+  canCallRummy: v.boolean(),
+  canTakeBackDiscard: v.boolean(),
 });
 
 export const tablePlayerValidator = v.object({
@@ -150,11 +160,12 @@ export const tableViewValidator = v.object({
   roundNumber: v.number(),
   contract: v.string(),
   phase: v.union(v.literal("playing"), v.literal("roundEnd"), v.literal("gameEnd")),
-  turnPhase: v.union(v.literal("draw"), v.literal("discard")),
+  turnPhase: v.union(v.literal("draw"), v.literal("discard"), v.literal("rummyWindow")),
   activeSeatIndex: v.number(),
   dealerSeatIndex: v.number(),
   topDiscard: v.union(cardValidator, v.null()),
   stockCount: v.number(),
+  rummyWindow: v.optional(rummyWindowValidator),
   players: v.array(tablePlayerValidator),
   melds: v.array(tableMeldValidator),
   cumulativeScores: v.array(v.number()),

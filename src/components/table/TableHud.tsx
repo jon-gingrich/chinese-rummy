@@ -19,6 +19,7 @@ type TableHudProps = {
   isMyTurn: boolean;
   players: TablePlayer[];
   onRulesClick: () => void;
+  onHowToPlayClick: () => void;
   settingsHref?: string;
 };
 
@@ -29,6 +30,7 @@ export function TableHud({
   isMyTurn,
   players,
   onRulesClick,
+  onHowToPlayClick,
   settingsHref,
 }: TableHudProps) {
   const sortedByScore = [...players].sort((a, b) => a.cumulativeScore - b.cumulativeScore);
@@ -66,6 +68,9 @@ export function TableHud({
             </div>
           ))}
         </div>
+        <button type="button" onClick={onHowToPlayClick} className="game-btn-secondary px-3 py-1.5 text-xs">
+          How to play
+        </button>
         <button type="button" onClick={onRulesClick} className="game-btn-secondary px-3 py-1.5 text-xs">
           Rules
         </button>

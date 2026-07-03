@@ -133,6 +133,7 @@ export async function buildTableView(
     dealerSeatIndex: state.dealerSeatIndex,
     topDiscard: state.discard[state.discard.length - 1] ?? null,
     stockCount: state.stock.length,
+    rummyWindow: state.rummyWindow,
     players,
     melds: state.melds,
     cumulativeScores: state.cumulativeScores,

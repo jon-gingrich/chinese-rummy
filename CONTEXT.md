@@ -100,6 +100,38 @@ _Avoid_: Add on, extend, hit
 Ending the round by discarding your last card, leaving zero cards in hand.
 _Avoid_: Winning the hand, emptying (going out requires a final discard)
 
+**Playable discard**:
+A card just discarded that could legally extend an existing meld on the table — by rank/suit fit on a set or run, including via wild replacement or wild rank declaration — regardless of whether the discarder was opened or allowed to lay off.
+_Avoid_: Lay-offable (implies player eligibility), meldable discard
+
+**Undiscardable wild**:
+A joker or any two may never be discarded — even when no melds are on the table and even when the card would not trigger a rummy call. A player whose only remaining card is a joker or two cannot go out by discarding; they must lay it off on a meld first.
+_Avoid_: Wild discard ban
+
+**Stuck wild resolution**:
+When a player's only card is a joker or two, they lay it off on a meld, then immediately pick up cards from the discard pile — two cards on first offense, entire pile on second and later — using the same per-game rummy penalty counter as a successful rummy call. They must then discard one before play passes clockwise.
+_Avoid_: Wild go-out, last-card wild
+
+**Rummy penalty counter**:
+Per player, per game: tracks how many times that player has faced rummy pickup (successful rummy calls and stuck-wild resolutions). First offense → two-card pickup; second and later → entire discard pile. Resets when a new game begins.
+_Avoid_: Rummy strike count
+
+**Rummy call**:
+A challenge by another player immediately after a playable discard, before the next player draws. The discarder must take penalty cards from the discard pile and discard again before play continues. A rummy call can interrupt going out — the round does not end until the rummy window closes with no call.
+_Avoid_: Rummy penalty, call rummy
+
+**Rummy window**:
+The brief period after a playable discard during which opponents may call rummy and the discarder may take back the discard. Closes when the next player draws. If no rummy call was made and the discard was a go-out, the round ends when the window closes. Opponents see a call action only when the server detects a playable discard.
+_Avoid_: Challenge phase, call window
+
+**Discard take-back**:
+During the rummy window, the discarder may return their just-played card from the discard pile into hand before any opponent calls rummy. After take-back, the discarder remains in the discard phase and must play a different card.
+_Avoid_: Undo discard, mulligan
+
+**Rummy penalty**:
+After a successful rummy call, the discarder takes cards from the discard pile into hand and must discard one before the next player's turn begins. The discarder does not draw from stock. First rummy call against a player in a game: top two cards from the discard pile, including the playable discard just played — or all cards in the pile if fewer than two remain. Second and later rummy calls against the same player in the same game: the entire discard pile. A penalty discard can open a new rummy window if it is playable.
+_Avoid_: Rummy punishment, penalty pickup
+
 ## Roles and turn order
 
 **Dealer**:

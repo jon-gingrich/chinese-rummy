@@ -6,6 +6,7 @@ import {
   startRound,
   type GameState,
 } from "../../../convex/lib/rules";
+import { discardableHandCards } from "../../../convex/lib/rules/rummy";
 import type { Card } from "../../../convex/lib/rules/types";
 
 function seatedPlayers(count: number) {
@@ -82,10 +83,14 @@ describe("legalActions", () => {
       canDiscard: false,
       discardableCards: [],
       layOffTargets: [],
+      canCallRummy: false,
+      canTakeBackDiscard: false,
     });
 
     state = applyAction(state, { kind: "draw", source: "stock" }, activeId).state;
-    const discardable = state.players.find((p) => p.id === activeId)!.hand;
+    const discardable = discardableHandCards(
+      state.players.find((p) => p.id === activeId)!.hand,
+    );
 
     expect(legalActions(state, activeId)).toEqual({
       canDrawFromStock: false,
@@ -95,6 +100,8 @@ describe("legalActions", () => {
       canDiscard: true,
       discardableCards: discardable,
       layOffTargets: [],
+      canCallRummy: false,
+      canTakeBackDiscard: false,
     });
   });
 
@@ -110,6 +117,8 @@ describe("legalActions", () => {
       canDiscard: false,
       discardableCards: [],
       layOffTargets: [],
+      canCallRummy: false,
+      canTakeBackDiscard: false,
     });
   });
 });

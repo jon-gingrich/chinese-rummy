@@ -11,7 +11,7 @@ type StockDiscardProps = {
   canDrawStock: boolean;
   canDrawDiscard: boolean;
   isMyTurn: boolean;
-  turnPhase: "draw" | "discard";
+  turnPhase: "draw" | "discard" | "rummyWindow";
   busy: boolean;
   onDrawStock: () => void;
   onDrawDiscard: () => void;
@@ -31,7 +31,8 @@ export function StockDiscard({
   onDrawDiscard,
 }: StockDiscardProps) {
   const cardScale = useCardScale();
-  const drawPhase = isMyTurn && turnPhase === "draw";
+  const drawPhase =
+    isMyTurn && (turnPhase === "draw" || turnPhase === "rummyWindow");
   const pileDims = scaledCardDimensions(PILE_SIZE, cardScale);
 
   return (

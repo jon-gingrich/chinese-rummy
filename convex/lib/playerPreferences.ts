@@ -13,6 +13,7 @@ export const playerPreferencesFields = {
   confirmBeforeOpening: v.optional(v.boolean()),
   cardScale: v.optional(displayScaleValidator),
   uiScale: v.optional(displayScaleValidator),
+  hasSeenHowToPlay: v.optional(v.boolean()),
 };
 
 export const playerPreferencesValidator = v.object({
@@ -20,6 +21,7 @@ export const playerPreferencesValidator = v.object({
   confirmBeforeOpening: v.boolean(),
   cardScale: displayScaleValidator,
   uiScale: displayScaleValidator,
+  hasSeenHowToPlay: v.boolean(),
 });
 
 export type PlayerPreferences = {
@@ -27,6 +29,7 @@ export type PlayerPreferences = {
   confirmBeforeOpening: boolean;
   cardScale: DisplayScale;
   uiScale: DisplayScale;
+  hasSeenHowToPlay: boolean;
 };
 
 export const DEFAULT_PLAYER_PREFERENCES: PlayerPreferences = {
@@ -34,6 +37,7 @@ export const DEFAULT_PLAYER_PREFERENCES: PlayerPreferences = {
   confirmBeforeOpening: true,
   cardScale: "medium",
   uiScale: "medium",
+  hasSeenHowToPlay: false,
 };
 
 export function resolvePlayerPreferences(
@@ -46,6 +50,7 @@ export function resolvePlayerPreferences(
       stored?.confirmBeforeOpening ?? DEFAULT_PLAYER_PREFERENCES.confirmBeforeOpening,
     cardScale: stored?.cardScale ?? DEFAULT_PLAYER_PREFERENCES.cardScale,
     uiScale: stored?.uiScale ?? DEFAULT_PLAYER_PREFERENCES.uiScale,
+    hasSeenHowToPlay: stored?.hasSeenHowToPlay ?? DEFAULT_PLAYER_PREFERENCES.hasSeenHowToPlay,
   };
 }
 
