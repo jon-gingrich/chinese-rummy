@@ -260,6 +260,12 @@ export function useOpeningFlow({
     onStatus(null);
   }
 
+  function clearSelection() {
+    setSelectedIds([]);
+    setWildRanks({});
+    onStatus(null);
+  }
+
   async function submitOpening() {
     if (pendingMelds.length !== requirements.length) {
       onStatus("Complete every contract meld before submitting.");
@@ -306,6 +312,7 @@ export function useOpeningFlow({
     toggleCard,
     addMeld,
     undoLastMeld,
+    clearSelection,
     removePendingMeldsFrom,
     submitOpening,
     progressLabel: nextRequirement

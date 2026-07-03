@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { isJoker } from "../../convex/lib/rules/melds";
@@ -36,6 +36,7 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
   const [showRules, setShowRules] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [handMode, setHandMode] = useState<"discard" | "opening">("discard");
 
   const myPlayer = table?.players.find((player) => player.id === viewer?.userId);
   const mySeatIndex = myPlayer?.seatIndex ?? 0;
@@ -45,8 +46,22 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
     table?.turnPhase === "discard" &&
     myPlayer?.playerPhase === "notOpened" &&
     legalActions?.canOpen;
+  const isOpeningHandMode = canOpen && handMode === "opening";
   const canLayOff =
     isMyTurn && table?.turnPhase === "discard" && (legalActions?.canLayOff ?? false);
+
+  useEffect(() => {
+    if (!isMyTurn || table?.turnPhase === "draw") {
+      setHandMode("discard");
+      setSelectedCardId(null);
+    }
+  }, [isMyTurn, table?.turnPhase]);
+
+  useEffect(() => {
+    if (!canOpen) {
+      setHandMode("discard");
+    }
+  }, [canOpen]);
 
   const sortedHand = useMemo(
     () => (hand ? sortHand(hand, handSortMode) : []),
@@ -80,19 +95,19 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
   }, [table?.melds]);
 
   const selectedCard =
-    sortedHand.find((entry) => entry.id === selectedCardId) ??
-    opening.selectedCards[0] ??
-    null;
+    isOpeningHandMode
+      ? opening.selectedCards[0] ?? null
+      : sortedHand.find((entry) => entry.id === selectedCardId) ?? null;
 
-  const handCards = canOpen ? opening.availableHand : sortedHand;
-  const handSelectedIds = canOpen
+  const handCards = isOpeningHandMode ? opening.availableHand : sortedHand;
+  const handSelectedIds = isOpeningHandMode
     ? opening.selectedIds
     : selectedCardId
       ? [selectedCardId]
       : [];
 
   const openingUndoButton =
-    canOpen && opening.pendingMelds.length > 0 ? (
+    isOpeningHandMode && opening.pendingMelds.length > 0 ? (
       <button
         type="button"
         disabled={opening.busy}
@@ -120,10 +135,15 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
     if (table.turnPhase === "draw") {
       return "Your turn — draw from stock or discard";
     }
-    if (canOpen) {
+    if (isOpeningHandMode) {
       return opening.nextRequirement
         ? `Open — ${opening.progressLabel}`
         : "Open — submit your contract";
+    }
+    if (canOpen) {
+      return selectedCardId
+        ? "Discard selected card (or open your contract)"
+        : "Select a card to discard (or open your contract)";
     }
     if (canLayOff) {
       return selectedCardId
@@ -131,7 +151,7 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
         : "Select a card to lay off";
     }
     return selectedCardId ? "Discard selected card" : "Select a card to discard";
-  }, [table, isMyTurn, canOpen, canLayOff, selectedCardId, opening.nextRequirement, opening.progressLabel]);
+  }, [table, isMyTurn, canOpen, isOpeningHandMode, canLayOff, selectedCardId, opening.nextRequirement, opening.progressLabel]);
 
   async function handleDraw(source: "stock" | "discard") {
     setBusy(true);
@@ -208,11 +228,24 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
     }
   }
 
+  function switchToDiscardMode() {
+    setHandMode("discard");
+    opening.clearSelection();
+    setSelectedCardId(null);
+    setStatus(null);
+  }
+
+  function switchToOpeningMode() {
+    setHandMode("opening");
+    setSelectedCardId(null);
+    setStatus(null);
+  }
+
   function toggleHandCard(cardId: string) {
     if (!isMyTurn || table?.turnPhase !== "discard" || busy) {
       return;
     }
-    if (canOpen) {
+    if (isOpeningHandMode) {
       opening.toggleCard(cardId);
       setStatus(null);
       return;
@@ -329,7 +362,7 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
                 highlightMeldIds={layOff.highlightMeldIds}
                 onMeldClick={canLayOff && selectedCardId ? layOff.selectMeld : undefined}
                 onPendingMeldClick={
-                  canOpen && player.id === viewer?.userId
+                  isOpeningHandMode && player.id === viewer?.userId
                     ? (index) => opening.removePendingMeldsFrom(index)
                     : undefined
                 }
@@ -359,7 +392,7 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
             onContinue={() => void handleContinueRound()}
           />
 
-          {canOpen && opening.wildCardsNeedingRank.length > 0 ? (
+          {isOpeningHandMode && opening.wildCardsNeedingRank.length > 0 ? (
             <ActionDock
               title="Declare wild ranks"
               actions={
@@ -393,7 +426,7 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
             </ActionDock>
           ) : null}
 
-          {canOpen && opening.wildCardsNeedingRank.length === 0 && opening.nextRequirement ? (
+          {isOpeningHandMode && opening.wildCardsNeedingRank.length === 0 && opening.nextRequirement ? (
             <ActionDock
               title="Opening"
               actions={
@@ -420,7 +453,7 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
             </ActionDock>
           ) : null}
 
-          {canOpen && !opening.nextRequirement ? (
+          {isOpeningHandMode && !opening.nextRequirement ? (
             <ActionDock
               title="Ready to open"
               actions={
@@ -576,20 +609,40 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              {isMyTurn && table.turnPhase === "discard" && !canOpen && !canLayOff ? (
+              {isMyTurn && table.turnPhase === "discard" && !isOpeningHandMode && !canLayOff ? (
                 <button
                   type="button"
-                  disabled={busy || !selectedCardId}
+                  disabled={busy || !selectedCard}
                   onClick={() => void requestDiscard()}
                   className="game-btn-primary px-3 py-1 text-xs"
                 >
                   Discard
                 </button>
               ) : null}
-              {isMyTurn && table.turnPhase === "discard" && (canOpen || canLayOff) ? (
+              {canOpen && handMode === "discard" ? (
                 <button
                   type="button"
-                  disabled={busy || !selectedCardId}
+                  disabled={busy}
+                  onClick={switchToOpeningMode}
+                  className="game-btn-secondary px-3 py-1 text-xs"
+                >
+                  Open contract
+                </button>
+              ) : null}
+              {isOpeningHandMode ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={switchToDiscardMode}
+                  className="game-btn-secondary px-3 py-1 text-xs"
+                >
+                  Discard instead
+                </button>
+              ) : null}
+              {isMyTurn && table.turnPhase === "discard" && canLayOff && !isOpeningHandMode ? (
+                <button
+                  type="button"
+                  disabled={busy || !selectedCard}
                   onClick={() => void requestDiscard()}
                   className="game-btn-secondary px-3 py-1 text-xs"
                 >
