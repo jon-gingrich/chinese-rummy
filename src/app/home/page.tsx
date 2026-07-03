@@ -7,6 +7,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { api } from "../../../convex/_generated/api";
 import { AppShell } from "@/components/AppShell";
 import { LinkAccountPrompt } from "../../components/LinkAccountPrompt";
+import { AuthErrorBanner } from "../../components/AuthErrorBanner";
 import { useGuestAuth } from "../../hooks/useGuestAuth";
 
 function MyGamesList() {
@@ -159,6 +160,8 @@ export default function HomePage() {
           </Link>
         )}
       </header>
+
+      <AuthErrorBanner isGuest={isGuest} />
 
       {isGuest ? (
         <LinkAccountPrompt

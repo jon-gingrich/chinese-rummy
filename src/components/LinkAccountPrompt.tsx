@@ -1,8 +1,8 @@
 "use client";
 
-import { useAuthActions } from "@convex-dev/auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { OAuthSignInButtons } from "@/components/OAuthSignInButtons";
 import { rememberGuestUserId } from "../lib/guestSession";
 
 type LinkAccountPromptProps = {
@@ -19,13 +19,7 @@ export function LinkAccountPrompt({
   compact = false,
 }: LinkAccountPromptProps) {
   const pathname = usePathname();
-  const { signIn } = useAuthActions();
   const returnTo = encodeURIComponent(pathname || "/home");
-
-  function handleGoogleSignIn() {
-    rememberGuestUserId(userId);
-    void signIn("google", { redirectTo: pathname || "/home" });
-  }
 
   if (compact) {
     return (
@@ -43,14 +37,15 @@ export function LinkAccountPrompt({
     <section className="game-panel border-amber-500/40 p-6">
       <h2 className="text-lg font-bold text-[var(--accent-soft)]">{title}</h2>
       <p className="mt-1 text-sm text-[var(--muted)]">{description}</p>
-      <div className="mt-4 flex flex-wrap gap-3">
-        <button type="button" onClick={() => void handleGoogleSignIn()} className="game-btn-primary">
-          Continue with Google
-        </button>
+      <div className="mt-4 space-y-4">
+        <OAuthSignInButtons
+          redirectTo={pathname || "/home"}
+          onBeforeSignIn={() => rememberGuestUserId(userId)}
+        />
         <Link
           href={`/sign-in?returnTo=${returnTo}`}
           onClick={() => rememberGuestUserId(userId)}
-          className="game-btn-secondary"
+          className="game-btn-secondary inline-flex"
         >
           Email magic link
         </Link>

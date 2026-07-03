@@ -3,7 +3,7 @@ import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { getCurrentUser, getCurrentUserOrNull, playerDisplayName } from "./lib/auth";
-import { mergeGuestUserData } from "./lib/accountLinking";
+import { mergeGuestUserData } from "./lib/mergeGuestUserData";
 import {
   DEFAULT_PLAYER_PREFERENCES,
   mergePlayerPreferences,

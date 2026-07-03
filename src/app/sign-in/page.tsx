@@ -4,6 +4,8 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { OAuthSignInButtons } from "@/components/OAuthSignInButtons";
+import { AuthErrorBanner } from "@/components/AuthErrorBanner";
 import { rememberGuestUserId } from "../../lib/guestSession";
 import { useGuestAuth } from "../../hooks/useGuestAuth";
 
@@ -14,23 +16,11 @@ export default function SignInPage() {
   const returnTo = searchParams.get("returnTo") ?? "/home";
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-  const [loading, setLoading] = useState<"google" | "email" | null>(null);
+  const [loading, setLoading] = useState<"email" | null>(null);
 
   function rememberGuestBeforeLinking() {
     if (viewer?.isGuest) {
       rememberGuestUserId(viewer.userId);
-    }
-  }
-
-  async function handleGoogleSignIn() {
-    rememberGuestBeforeLinking();
-    setLoading("google");
-    setMessage(null);
-    try {
-      await signIn("google", { redirectTo: returnTo });
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Google sign-in failed");
-      setLoading(null);
     }
   }
 
@@ -50,16 +40,15 @@ export default function SignInPage() {
   }
 
   return (
-    <AppShell backHref="/" backLabel="← Home" title="Sign in" subtitle="Use Google or a magic link sent to your email.">
+    <AppShell
+      backHref="/"
+      backLabel="← Home"
+      title="Sign in"
+      subtitle="Use Google, Microsoft, Yahoo, or a magic link sent to your email."
+    >
       <div className="game-panel mx-auto max-w-md space-y-6 p-6">
-        <button
-          type="button"
-          onClick={() => void handleGoogleSignIn()}
-          disabled={loading !== null}
-          className="game-btn-secondary w-full"
-        >
-          {loading === "google" ? "Redirecting…" : "Continue with Google"}
-        </button>
+        <AuthErrorBanner />
+        <OAuthSignInButtons redirectTo={returnTo} onBeforeSignIn={rememberGuestBeforeLinking} />
 
         <form onSubmit={(event) => void handleEmailSignIn(event)} className="space-y-3">
           <label className="block space-y-2 text-sm">

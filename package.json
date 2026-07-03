@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@auth/core": "^0.41.1",
@@ -33,8 +34,9 @@
     "@typescript-eslint/eslint-plugin": "^8.62.1",
     "@typescript-eslint/parser": "^8.62.1",
     "convex-test": "^0.0.54",
-    "eslint": "^9.39.4",
+    "eslint": "^10.6.0",
     "eslint-config-next": "^16.2.10",
+    "patch-package": "^8.0.1",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"
   }

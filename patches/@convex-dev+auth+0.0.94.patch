@@ -1,0 +1,93 @@
+diff --git a/node_modules/@convex-dev/auth/dist/server/oauth/callback.js b/node_modules/@convex-dev/auth/dist/server/oauth/callback.js
+index 7838f7b..5634a0c 100644
+--- a/node_modules/@convex-dev/auth/dist/server/oauth/callback.js
++++ b/node_modules/@convex-dev/auth/dist/server/oauth/callback.js
+@@ -1,6 +1,7 @@
+ // This maps to packages/core/src/lib/actions/callback/oauth/callback.ts in the @auth/core package (commit 5af1f30a32e64591abc50ae4d2dba4682e525431)
+ import * as checks from "./checks.js";
+ import * as o from "oauth4webapi";
++import { decodeJwt } from "jose";
+ import { fetchOpt } from "./lib/utils/customFetch.js";
+ import { logWithLevel } from "../implementation/utils.js";
+ import { isOIDCProvider } from "./lib/utils/providers.js";
+@@ -8,6 +9,15 @@ import { callbackUrl, getAuthorizationSignature, } from "./convexAuth.js";
+ function formUrlEncode(token) {
+     return encodeURIComponent(token).replace(/%20/g, "+");
+ }
++function hasConformInternalSymbol(provider) {
++    for (const sym of Object.getOwnPropertySymbols(provider)) {
++        if (sym.description === "conform-internal" &&
++            provider[sym] === true) {
++            return true;
++        }
++    }
++    return false;
++}
+ /**
+  * Formats client_id and client_secret as an HTTP Basic Authentication header as per the OAuth 2.0
+  * specified in RFC6749.
+@@ -34,7 +44,8 @@ params,
+ cookies, options) {
+     const { provider } = options;
+     // ConvexAuth: The `token` property is not used here
+-    const { userinfo, as } = provider;
++    const { userinfo } = provider;
++    let { as } = provider;
+     const client = {
+         client_id: provider.clientId,
+         ...provider.client,
+@@ -106,6 +117,54 @@ cookies, options) {
+                 codeGrantResponse;
+     }
+     let profile = {};
++    if (hasConformInternalSymbol(provider)) {
++        switch (provider.id) {
++            case "microsoft-entra-id":
++            case "azure-ad": {
++                const responseJson = await codeGrantResponse.clone().json();
++                if (responseJson.error) {
++                    const cause = {
++                        providerId: provider.id,
++                        ...responseJson,
++                    };
++                    logWithLevel("DEBUG", "OAuthCallbackError", cause);
++                    throw new Error(`OAuth Provider returned an error: ${responseJson.error}`, { cause });
++                }
++                const { tid } = decodeJwt(responseJson.id_token);
++                if (typeof tid === "string") {
++                    const tenantSegmentRe = /microsoftonline\.com\/[^/]+\/v2\.0/;
++                    const issuer = new URL(as.issuer.replace(tenantSegmentRe, `microsoftonline.com/${tid}/v2.0`));
++                    const discoveryResponse = await o.discoveryRequest(issuer, {
++                        [o.customFetch]: async (...args) => {
++                            const response = await fetch(...args);
++                            const first = args[0];
++                            const requestUrl = typeof first === "string"
++                                ? first
++                                : first instanceof URL
++                                    ? first.toString()
++                                    : first.url;
++                            if (!requestUrl.endsWith(".well-known/openid-configuration")) {
++                                return response;
++                            }
++                            const json = await response.clone().json();
++                            if (typeof json?.issuer === "string" &&
++                                json.issuer.includes("{tenantid}")) {
++                                return Response.json({
++                                    ...json,
++                                    issuer: json.issuer.replace("{tenantid}", tid),
++                                });
++                            }
++                            return response;
++                        },
++                    });
++                    as = await o.processDiscoveryResponse(issuer, discoveryResponse);
++                }
++                break;
++            }
++            default:
++                break;
++        }
++    }
+     // ConvexAuth: We use the value of the nonce later, aside from feeding it into the
+     // `processAuthorizationCodeResponse` function.
+     const nonce = await checks.nonce.use(cookies, resCookies, options);

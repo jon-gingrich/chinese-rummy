@@ -20,7 +20,7 @@ Then configure auth (one-time):
 npx @convex-dev/auth --web-server-url http://localhost:3000 --skip-git-check
 ```
 
-Set Google OAuth and Resend secrets on your Convex deployment. See **[docs/setup/auth-providers.md](docs/setup/auth-providers.md)** for Google Cloud and Resend console steps.
+Set Google, Microsoft, Yahoo OAuth, and Resend secrets on your Convex deployment. See **[docs/setup/auth-providers.md](docs/setup/auth-providers.md)** for provider console steps.
 
 Quick path (interactive):
 
@@ -37,7 +37,11 @@ npx convex env set AUTH_RESEND_KEY <resend-api-key>
 npx convex env set AUTH_EMAIL_FROM "Chinese Rummy <onboarding@resend.dev>"
 ```
 
-Google redirect URI must be `https://<deployment>.convex.site/api/auth/callback/google` (use `NEXT_PUBLIC_CONVEX_SITE_URL` from `.env.local`).
+OAuth redirect URIs must use your Convex site URL (from `NEXT_PUBLIC_CONVEX_SITE_URL`), for example:
+
+- `https://<deployment>.convex.site/api/auth/callback/google`
+- `https://<deployment>.convex.site/api/auth/callback/microsoft-entra-id`
+- `https://<deployment>.convex.site/api/auth/callback/yahoo`
 
 ## Run
 
