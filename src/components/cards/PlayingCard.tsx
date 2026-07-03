@@ -237,7 +237,7 @@ export function PlayingCard({
   const interactive = Boolean(onClick) && !disabled && !displayOnly;
 
   const showWildShell = playedWild || card.rank === "JOKER";
-  const shellClasses = `relative shrink-0 overflow-visible rounded-lg border-2 bg-[#fffef8] shadow-md transition ${className} ${
+  const shellClasses = `relative shrink-0 overflow-visible rounded-lg border bg-[#fffef8] shadow-md transition ${className} ${
     selected
       ? "border-[var(--accent)] ring-2 ring-[var(--accent)]/50"
       : highlighted

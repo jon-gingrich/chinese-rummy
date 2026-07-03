@@ -70,4 +70,19 @@ describe("users.updatePreferences", () => {
     expect(viewer?.preferences.confirmBeforeDiscard).toBe(false);
     expect(viewer?.preferences.cardScale).toBe("large");
   });
+
+  it("persists hasSeenHowToPlay across viewer reads", async () => {
+    const t = createTestContext();
+    const asUser = await withSeededPlayer(t, {
+      name: "Pat",
+      email: "pat@example.com",
+    });
+
+    await asUser.mutation(api.users.updatePreferences, {
+      preferences: { hasSeenHowToPlay: true },
+    });
+
+    const viewer = await asUser.query(api.users.viewer, {});
+    expect(viewer?.preferences.hasSeenHowToPlay).toBe(true);
+  });
 });

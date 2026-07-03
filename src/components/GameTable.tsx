@@ -23,7 +23,7 @@ import { useOpeningFlow } from "../hooks/useOpeningFlow";
 import { usePlayerPreferences } from "../contexts/PlayerPreferencesContext";
 
 export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
-  const { preferences, updatePreferences } = usePlayerPreferences();
+  const { preferences, updatePreferences, isLoading: preferencesLoading } = usePlayerPreferences();
   const viewer = useQuery(api.users.viewer);
   const table = useQuery(api.games.getGame, { roomId });
   const hand = useQuery(api.games.getMyHand, { roomId });
@@ -72,23 +72,28 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
   }, [canOpen]);
 
   useEffect(() => {
-    if (howToPlayAutoShown || viewer === undefined || table === null || table === undefined) {
+    if (
+      howToPlayAutoShown ||
+      preferencesLoading ||
+      viewer === undefined ||
+      viewer === null ||
+      table === null ||
+      table === undefined
+    ) {
       return;
     }
     if (!preferences.hasSeenHowToPlay) {
       setShowHowToPlay(true);
     }
     setHowToPlayAutoShown(true);
-  }, [howToPlayAutoShown, preferences.hasSeenHowToPlay, table, viewer]);
+  }, [howToPlayAutoShown, preferences.hasSeenHowToPlay, preferencesLoading, table, viewer]);
 
   async function handleCloseHowToPlay() {
     setShowHowToPlay(false);
-    if (!preferences.hasSeenHowToPlay) {
-      try {
-        await updatePreferences({ hasSeenHowToPlay: true });
-      } catch {
-        setStatus("Could not save tutorial progress.");
-      }
+    try {
+      await updatePreferences({ hasSeenHowToPlay: true });
+    } catch {
+      setStatus("Could not save tutorial progress.");
     }
   }
 
@@ -183,8 +188,8 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
     }
     if (canOpen) {
       return selectedCardId
-        ? "Discard selected card (or open your contract)"
-        : "Select a card to discard (or open your contract)";
+        ? "Discard selected card — or tap another card to build a meld"
+        : "Select a card to discard — or tap several cards to build your contract";
     }
     if (canLayOff) {
       return selectedCardId
@@ -318,11 +323,55 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
     if (!isMyTurn || table?.turnPhase !== "discard" || busy) {
       return;
     }
+
     if (isOpeningHandMode) {
-      opening.toggleCard(cardId);
+      const isDeselect = opening.selectedIds.includes(cardId);
+      if (isDeselect && opening.pendingMelds.length === 0) {
+        const remaining = opening.selectedIds.filter((id) => id !== cardId);
+        opening.clearSelection();
+        setHandMode("discard");
+        setSelectedCardId(remaining.length === 1 ? remaining[0]! : null);
+      } else {
+        opening.toggleCard(cardId);
+      }
       setStatus(null);
       return;
     }
+
+    if (canLayOff) {
+      setSelectedCardId((current) => (current === cardId ? null : cardId));
+      setStatus(null);
+      return;
+    }
+
+    if (canOpen) {
+      if (opening.pendingMelds.length > 0) {
+        setHandMode("opening");
+        opening.seedSelection([cardId]);
+        setSelectedCardId(null);
+        setStatus(null);
+        return;
+      }
+
+      if (selectedCardId === cardId) {
+        setSelectedCardId(null);
+        setStatus(null);
+        return;
+      }
+
+      if (selectedCardId) {
+        setHandMode("opening");
+        opening.seedSelection([selectedCardId, cardId]);
+        setSelectedCardId(null);
+        setStatus(null);
+        return;
+      }
+
+      setSelectedCardId(cardId);
+      setStatus(null);
+      return;
+    }
+
     setSelectedCardId((current) => (current === cardId ? null : cardId));
     setStatus(null);
   }
@@ -409,7 +458,7 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
       />
 
       <div className="wood-rail relative m-1 flex min-h-0 flex-1 flex-col rounded-xl p-1 shadow-2xl">
-        <div className="relative min-h-0 flex-1 overflow-hidden rounded-lg">
+        <div className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-visible rounded-lg">
           <FeltSurface
             center={
               table.phase === "playing" ? (

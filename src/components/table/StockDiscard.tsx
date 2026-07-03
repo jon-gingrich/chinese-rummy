@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import type { Card } from "../../../convex/lib/rules/types";
 import { scaledCardDimensions } from "../../lib/cardDisplay";
 import { useCardScale } from "../../contexts/PlayerPreferencesContext";
@@ -19,6 +20,12 @@ type StockDiscardProps = {
 
 const PILE_SIZE = "md" as const;
 
+function PileLabel({ children }: { children: ReactNode }) {
+  return (
+    <span className="mt-1 text-[10px] font-semibold tracking-wide text-white/55">{children}</span>
+  );
+}
+
 export function StockDiscard({
   stockCount,
   topDiscard,
@@ -36,8 +43,8 @@ export function StockDiscard({
   const pileDims = scaledCardDimensions(PILE_SIZE, cardScale);
 
   return (
-    <div className="flex items-end justify-center gap-8 md:gap-12">
-      <div className="flex flex-col items-center gap-1.5">
+    <div className="flex items-start justify-center gap-5 md:gap-7">
+      <div className="flex flex-col items-center">
         <div className="relative">
           <PlayingCard
             card={{ id: "stock", suit: "spades", rank: "A", deckIndex: 0 }}
@@ -48,21 +55,18 @@ export function StockDiscard({
             onClick={onDrawStock}
           />
           {stockCount > 1 ? (
-            <PlayingCard
-              card={{ id: "stock-2", suit: "spades", rank: "A", deckIndex: 0 }}
-              faceDown
-              size={PILE_SIZE}
-              disabled
-              className="pointer-events-none absolute left-1.5 top-1.5 -z-10"
-            />
+            <span
+              className="pointer-events-none absolute -right-0.5 -top-0.5 rounded-full border border-white/20 bg-black/55 px-1.5 py-px text-[9px] font-bold text-[var(--cream)]"
+              aria-hidden
+            >
+              {stockCount}
+            </span>
           ) : null}
         </div>
-        <span className="rounded-full bg-black/40 px-2 py-0.5 text-[10px] font-bold text-[var(--cream)]">
-          Stock · {stockCount}
-        </span>
+        <PileLabel>Stock</PileLabel>
       </div>
 
-      <div className="flex flex-col items-center gap-1.5">
+      <div className="flex flex-col items-center">
         {topDiscard ? (
           <PlayingCard
             card={topDiscard}
@@ -73,15 +77,13 @@ export function StockDiscard({
           />
         ) : (
           <div
-            className="flex items-center justify-center rounded-lg border-2 border-dashed border-white/20 text-xs text-[var(--muted)]"
+            className="flex items-center justify-center rounded-lg border border-dashed border-white/15 text-[10px] text-white/40"
             style={{ width: pileDims.width, height: pileDims.height }}
           >
             Empty
           </div>
         )}
-        <span className="rounded-full bg-black/40 px-2 py-0.5 text-[10px] font-bold text-[var(--cream)]">
-          Discard
-        </span>
+        <PileLabel>Discard</PileLabel>
       </div>
     </div>
   );

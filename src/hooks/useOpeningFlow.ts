@@ -266,6 +266,17 @@ export function useOpeningFlow({
     onStatus(null);
   }
 
+  function seedSelection(cardIds: string[]) {
+    if (!nextRequirement || busy) {
+      return;
+    }
+    const allowed = new Set(availableHand.map((card) => card.id));
+    const next = cardIds.filter((id) => allowed.has(id)).slice(0, nextRequirement.size);
+    setSelectedIds(next);
+    setWildRanks({});
+    onStatus(null);
+  }
+
   async function submitOpening() {
     if (pendingMelds.length !== requirements.length) {
       onStatus("Complete every contract meld before submitting.");
@@ -310,6 +321,7 @@ export function useOpeningFlow({
     showConfirm,
     setShowConfirm,
     toggleCard,
+    seedSelection,
     addMeld,
     undoLastMeld,
     clearSelection,
