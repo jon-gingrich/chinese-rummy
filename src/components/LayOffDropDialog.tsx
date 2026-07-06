@@ -93,9 +93,14 @@ export function LayOffDropDialog({
                     <option value="">Choose meld…</option>
                     {relocationDestinations.map((meldId) => {
                       const meld = melds.find((entry) => entry.id === meldId);
+                      const isSameMeld = meldId === target.meldId;
                       return (
                         <option key={meldId} value={meldId}>
-                          {meld ? `${meld.kind} (${meld.cards.length} cards)` : meldId.slice(0, 8)}
+                          {isSameMeld
+                            ? "This meld (extend)"
+                            : meld
+                              ? `${meld.kind} (${meld.cards.length} cards)`
+                              : meldId.slice(0, 8)}
                         </option>
                       );
                     })}

@@ -183,7 +183,39 @@ describe("findLayOffTargets", () => {
       meldId: "run-a",
       mode: "replaceWild",
       replaceWildCardId: joker.id,
-      relocationDestinations: ["run-b"],
+      relocationDestinations: ["run-a", "run-b"],
+    });
+  });
+
+  it("offers same-meld relocation when the freed wild can extend the run", () => {
+    const joker = makeCard("joker", "JOKER", 0);
+    const fourDiamonds = makeCard("diamonds", "4", 1);
+    const melds = [
+      tableMeld(
+        "diamond-run",
+        "player-1",
+        "run",
+        [
+          makeCard("diamonds", "3"),
+          joker,
+          makeCard("diamonds", "5"),
+          makeCard("diamonds", "6"),
+          makeCard("diamonds", "7"),
+          makeCard("diamonds", "8"),
+          makeCard("diamonds", "9"),
+        ],
+        [{ cardId: joker.id, asRank: "4" }],
+      ),
+    ];
+
+    const targets = findLayOffTargets(melds, [fourDiamonds], true, false);
+
+    expect(targets).toContainEqual({
+      cardId: fourDiamonds.id,
+      meldId: "diamond-run",
+      mode: "replaceWild",
+      replaceWildCardId: joker.id,
+      relocationDestinations: ["diamond-run"],
     });
   });
 });

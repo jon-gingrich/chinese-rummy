@@ -170,6 +170,78 @@ function findValidWildRanksForMeld(meld: TableMeld, card: Card): NaturalRank[] {
   return ranks;
 }
 
+function simulateReplacement(
+  target: TableMeld,
+  card: Card,
+  replaceWildCardId: string,
+): TableMeld | null {
+  const wildIndex = target.cards.findIndex((entry) => entry.id === replaceWildCardId);
+  if (wildIndex === -1) {
+    return null;
+  }
+
+  const wildCard = target.cards[wildIndex]!;
+  if (!isWildInMeld(wildCard, target.wildDeclarations)) {
+    return null;
+  }
+
+  const targetCards = [...target.cards];
+  targetCards[wildIndex] = card;
+  const targetDeclarations = target.wildDeclarations.filter(
+    (entry) => entry.cardId !== replaceWildCardId,
+  );
+  const updated: TableMeld =
+    target.kind === "run"
+      ? orderRunMeld({
+          ...target,
+          cards: targetCards,
+          wildDeclarations: targetDeclarations,
+        })
+      : {
+          ...target,
+          cards: targetCards,
+          wildDeclarations: targetDeclarations,
+        };
+
+  const valid =
+    updated.kind === "set"
+      ? validateSetStructure(updated.cards, updated.wildDeclarations)
+      : validateRunStructure(updated.cards, updated.wildDeclarations);
+  return valid ? updated : null;
+}
+
+export function findRelocationDestinations(
+  target: TableMeld,
+  card: Card,
+  replaceWildCardId: string,
+  allMelds: TableMeld[],
+): string[] {
+  const wildIndex = target.cards.findIndex((entry) => entry.id === replaceWildCardId);
+  if (wildIndex === -1) {
+    return [];
+  }
+
+  const wildCard = target.cards[wildIndex]!;
+  if (!isWildInMeld(wildCard, target.wildDeclarations)) {
+    return [];
+  }
+
+  const updatedTarget = simulateReplacement(target, card, replaceWildCardId);
+  if (!updatedTarget) {
+    return [];
+  }
+
+  const destinations: string[] = [];
+  for (const candidate of ownerMelds(allMelds, target.ownerId)) {
+    const baseMeld = candidate.id === target.id ? updatedTarget : candidate;
+    if (findValidWildRanksForMeld(baseMeld, wildCard).length > 0) {
+      destinations.push(candidate.id);
+    }
+  }
+
+  return destinations;
+}
+
 function replaceableWilds(meld: TableMeld, card: Card): string[] {
   if (meld.kind === "set") {
     return [];
@@ -229,9 +301,7 @@ export function findLayOffTargets(
       }
 
       for (const wildCardId of replaceableWilds(meld, card)) {
-        const destinations = ownerMelds(melds, meld.ownerId)
-          .filter((entry) => entry.id !== meld.id)
-          .map((entry) => entry.id);
+        const destinations = findRelocationDestinations(meld, card, wildCardId, melds);
         if (destinations.length > 0) {
           targets.push({
             cardId: card.id,
@@ -272,37 +342,14 @@ function applyReplacement(
   if (destination.ownerId !== target.ownerId) {
     return { error: "Wild must relocate to another meld on the same owner board" };
   }
-  if (destination.id === target.id) {
-    return { error: "Wild must relocate to a different meld" };
-  }
 
-  const targetCards = [...target.cards];
-  targetCards[wildIndex] = card;
-  const targetDeclarations = target.wildDeclarations.filter(
-    (entry) => entry.cardId !== replaceWildCardId,
-  );
-  const updatedTarget: TableMeld =
-    target.kind === "run"
-      ? orderRunMeld({
-          ...target,
-          cards: targetCards,
-          wildDeclarations: targetDeclarations,
-        })
-      : {
-          ...target,
-          cards: targetCards,
-          wildDeclarations: targetDeclarations,
-        };
-
-  const targetValid =
-    updatedTarget.kind === "set"
-      ? validateSetStructure(updatedTarget.cards, updatedTarget.wildDeclarations)
-      : validateRunStructure(updatedTarget.cards, updatedTarget.wildDeclarations);
-  if (!targetValid) {
+  const updatedTarget = simulateReplacement(target, card, replaceWildCardId);
+  if (!updatedTarget) {
     return { error: "Replacement leaves target meld invalid" };
   }
 
-  const destinationDeclarations = [...destination.wildDeclarations];
+  const baseMeld = destination.id === target.id ? updatedTarget : destination;
+  const destinationDeclarations = [...baseMeld.wildDeclarations];
   if (relocation.wildDeclaration) {
     const existing = destinationDeclarations.findIndex(
       (entry) => entry.cardId === wildCard.id,
@@ -320,15 +367,15 @@ function applyReplacement(
   }
 
   const updatedDestination: TableMeld =
-    destination.kind === "run"
+    baseMeld.kind === "run"
       ? orderRunMeld({
-          ...destination,
-          cards: [...destination.cards, wildCard],
+          ...baseMeld,
+          cards: [...baseMeld.cards, wildCard],
           wildDeclarations: destinationDeclarations,
         })
       : {
-          ...destination,
-          cards: [...destination.cards, wildCard],
+          ...baseMeld,
+          cards: [...baseMeld.cards, wildCard],
           wildDeclarations: destinationDeclarations,
         };
 
@@ -349,10 +396,10 @@ function applyReplacement(
   }
 
   const melds = allMelds.map((meld) => {
-    if (meld.id === updatedTarget.id) {
-      return updatedTarget;
+    if (meld.id === target.id) {
+      return destination.id === target.id ? updatedDestination : updatedTarget;
     }
-    if (meld.id === updatedDestination.id) {
+    if (meld.id === destination.id && destination.id !== target.id) {
       return updatedDestination;
     }
     return meld;

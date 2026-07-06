@@ -447,6 +447,82 @@ describe("wild relocation", () => {
     const destination = result.state.melds.find((meld) => meld.id === "run-b");
     expect(destination?.cards.filter((card) => card.rank === "JOKER")).toHaveLength(2);
   });
+
+  it("allows relocating a freed wild onto the same run to extend it", () => {
+    const ownerId = "player-1";
+    const activeId = "player-0";
+    const joker = makeCard("joker", "JOKER", 0);
+    const state: GameState = {
+      ...startRound(createGame({ players: seatedPlayers(2) }), { seed: 1 }),
+      turnPhase: "discard",
+      activeSeatIndex: 0,
+      players: [
+        {
+          id: activeId,
+          seatIndex: 0,
+          playerPhase: "opened",
+          openedThisTurn: false,
+          hand: [makeCard("diamonds", "4", 1), makeCard("clubs", "9")],
+        },
+        {
+          id: ownerId,
+          seatIndex: 1,
+          playerPhase: "opened",
+          openedThisTurn: false,
+          hand: [],
+        },
+      ],
+      melds: [
+        tableMeld(
+          "diamond-run",
+          ownerId,
+          "run",
+          [
+            makeCard("diamonds", "3"),
+            joker,
+            makeCard("diamonds", "5"),
+            makeCard("diamonds", "6"),
+            makeCard("diamonds", "7"),
+            makeCard("diamonds", "8"),
+            makeCard("diamonds", "9"),
+          ],
+          [{ cardId: joker.id, asRank: "4" }],
+        ),
+      ],
+    };
+
+    const result = applyAction(
+      state,
+      {
+        kind: "layOff",
+        targetMeldId: "diamond-run",
+        card: makeCard("diamonds", "4", 1),
+        replaceWildCardId: joker.id,
+        relocation: {
+          destinationMeldId: "diamond-run",
+          wildDeclaration: { cardId: joker.id, asRank: "10" },
+        },
+      },
+      activeId,
+    );
+
+    expect(result.error).toBeUndefined();
+    const updated = result.state.melds.find((meld) => meld.id === "diamond-run");
+    expect(updated?.cards.map((card) => card.rank)).toEqual([
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "JOKER",
+    ]);
+    expect(updated?.wildDeclarations).toContainEqual({
+      cardId: joker.id,
+      asRank: "10",
+    });
+  });
 });
 
 describe("run meld ordering", () => {
