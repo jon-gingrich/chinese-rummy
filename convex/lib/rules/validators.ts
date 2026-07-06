@@ -110,6 +110,12 @@ export const rummyWindowValidator = v.object({
   wouldGoOut: v.boolean(),
 });
 
+export const reshufflePauseValidator = v.object({
+  resumeTurnPhase: v.union(v.literal("draw"), v.literal("rummyWindow")),
+  rummyWindow: v.optional(rummyWindowValidator),
+  activeSeatIndex: v.number(),
+});
+
 export const gameStateValidator = v.object({
   phase: v.union(v.literal("playing"), v.literal("roundEnd"), v.literal("gameEnd")),
   roundNumber: v.number(),
@@ -117,13 +123,19 @@ export const gameStateValidator = v.object({
   players: v.array(playerStateValidator),
   dealerSeatIndex: v.number(),
   activeSeatIndex: v.number(),
-  turnPhase: v.union(v.literal("draw"), v.literal("discard"), v.literal("rummyWindow")),
+  turnPhase: v.union(
+    v.literal("draw"),
+    v.literal("discard"),
+    v.literal("rummyWindow"),
+    v.literal("reshuffle"),
+  ),
   stock: v.array(cardValidator),
   discard: v.array(cardValidator),
   melds: v.array(tableMeldValidator),
   cumulativeScores: v.array(v.number()),
   rummyPenaltyCounts: v.optional(v.record(v.string(), v.number())),
   rummyWindow: v.optional(rummyWindowValidator),
+  reshufflePause: v.optional(reshufflePauseValidator),
   lastRoundSummary: v.optional(roundSummaryValidator),
   winnerPlayerIds: v.optional(v.array(v.string())),
 });
@@ -163,7 +175,12 @@ export const tableViewValidator = v.object({
   roundNumber: v.number(),
   contract: v.string(),
   phase: v.union(v.literal("playing"), v.literal("roundEnd"), v.literal("gameEnd")),
-  turnPhase: v.union(v.literal("draw"), v.literal("discard"), v.literal("rummyWindow")),
+  turnPhase: v.union(
+    v.literal("draw"),
+    v.literal("discard"),
+    v.literal("rummyWindow"),
+    v.literal("reshuffle"),
+  ),
   activeSeatIndex: v.number(),
   dealerSeatIndex: v.number(),
   topDiscard: v.union(cardValidator, v.null()),

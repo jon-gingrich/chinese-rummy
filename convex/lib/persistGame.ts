@@ -1,6 +1,6 @@
 import type { Doc } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import { scheduleAutomatedTurnIfNeeded } from "../automatedTurnScheduler";
+import { scheduleStockReshuffleAdvanceIfNeeded } from "../stockReshuffle";
 import {
   buildTableView,
   handForPlayer,
@@ -34,7 +34,7 @@ export async function persistGameState(
         now,
       });
     } else {
-      await scheduleAutomatedTurnIfNeeded(ctx, game._id, normalizedState);
+      await scheduleStockReshuffleAdvanceIfNeeded(ctx, game._id, normalizedState);
     }
   }
 

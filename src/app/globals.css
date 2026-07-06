@@ -124,6 +124,58 @@ body {
   }
 }
 
+@keyframes stock-shuffle {
+  0%,
+  100% {
+    transform: rotate(0deg) translateX(0);
+  }
+  20% {
+    transform: rotate(-4deg) translateX(-3px);
+  }
+  40% {
+    transform: rotate(3deg) translateX(2px);
+  }
+  60% {
+    transform: rotate(-2deg) translateX(-2px);
+  }
+  80% {
+    transform: rotate(2deg) translateX(1px);
+  }
+}
+
+@keyframes card-fly-to-stock {
+  0% {
+    opacity: 0.95;
+    transform: translateX(52px) translateY(0) rotate(8deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(0) translateY(-10px) rotate(-12deg) scale(0.82);
+  }
+}
+
+@keyframes reshuffle-label-pulse {
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.stock-shuffle {
+  animation: stock-shuffle 0.45s ease-in-out infinite;
+}
+
+.card-fly-to-stock {
+  animation: card-fly-to-stock 0.7s ease-in forwards;
+}
+
+.reshuffle-label-pulse {
+  animation: reshuffle-label-pulse 1.2s ease-in-out infinite;
+}
+
 .turn-pulse {
   animation: turn-pulse 2s ease-in-out infinite;
 }

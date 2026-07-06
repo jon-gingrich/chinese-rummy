@@ -1,4 +1,5 @@
 export {
+  advanceFromReshuffle,
   applyAction,
   applyCallRummy,
   applyTakeBackDiscard,

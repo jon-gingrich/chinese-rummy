@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  advanceFromReshuffle,
   applyAction,
   createGame,
   legalActions,
@@ -226,28 +227,52 @@ describe("applyAction discard", () => {
 });
 
 describe("stock reshuffle", () => {
-  it("reshuffles discards into stock keeping the top discard when stock is empty", () => {
+  it("reshuffles after discard when stock is empty, before the next turn", () => {
     let state = gameWithDealtHands(2);
     const activeId = activePlayerId(state);
+    state = applyAction(state, { kind: "draw", source: "stock" }, activeId).state;
+
+    const player = state.players.find((p) => p.id === activeId)!;
+    const discardCard = discardableHandCards(player.hand)[0]!;
 
     state = {
       ...state,
       stock: [],
-      discard: [
-        { id: "bottom", suit: "clubs", rank: "3", deckIndex: 0 },
-        { id: "top", suit: "diamonds", rank: "4", deckIndex: 0 },
-      ],
-      turnPhase: "draw",
-      activeSeatIndex: state.activeSeatIndex,
+      discard: [{ id: "bottom", suit: "clubs", rank: "3", deckIndex: 0 }],
+      turnPhase: "discard",
     };
 
-    const topDiscard = state.discard[state.discard.length - 1]!;
-    const result = applyAction(state, { kind: "draw", source: "stock" }, activeId);
+    const result = applyAction(state, { kind: "discard", card: discardCard }, activeId);
 
     expect(result.error).toBeUndefined();
-    expect(result.state.discard).toEqual([topDiscard]);
-    expect(result.state.stock).toHaveLength(0);
-    expect(result.state.players.find((p) => p.id === activeId)!.hand).toHaveLength(14);
+    expect(result.state.turnPhase).toBe("reshuffle");
+    expect(result.state.reshufflePause?.resumeTurnPhase).toBe("draw");
+    expect(result.state.discard).toEqual([discardCard]);
+    expect(result.state.stock).toHaveLength(1);
+    expect(activePlayerId(result.state)).not.toBe(activeId);
+  });
+
+  it("advances from reshuffle pause into the next turn phase", () => {
+    let state = gameWithDealtHands(2);
+    const activeId = activePlayerId(state);
+    state = applyAction(state, { kind: "draw", source: "stock" }, activeId).state;
+
+    const player = state.players.find((p) => p.id === activeId)!;
+    const discardCard = discardableHandCards(player.hand)[0]!;
+
+    state = {
+      ...state,
+      stock: [],
+      discard: [{ id: "bottom", suit: "clubs", rank: "3", deckIndex: 0 }],
+      turnPhase: "discard",
+    };
+
+    const afterDiscard = applyAction(state, { kind: "discard", card: discardCard }, activeId).state;
+    const resumed = advanceFromReshuffle(afterDiscard);
+
+    expect(resumed.turnPhase).toBe("draw");
+    expect(resumed.reshufflePause).toBeUndefined();
+    expect(resumed.stock).toHaveLength(1);
   });
 
   it("rejects stock draw when stock is empty and discard cannot be reshuffled", () => {

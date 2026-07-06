@@ -9,7 +9,7 @@ import {
   markGameFinished,
   touchGameParticipants,
 } from "./lib/games";
-import { scheduleAutomatedTurnIfNeeded } from "./automatedTurnScheduler";
+import { scheduleStockReshuffleAdvanceIfNeeded } from "./stockReshuffle";
 
 export const runStep = internalMutation({
   args: {
@@ -68,7 +68,7 @@ export const runStep = internalMutation({
       return null;
     }
 
-    await scheduleAutomatedTurnIfNeeded(ctx, args.gameId, nextState);
+    await scheduleStockReshuffleAdvanceIfNeeded(ctx, args.gameId, nextState);
 
     return null;
   },

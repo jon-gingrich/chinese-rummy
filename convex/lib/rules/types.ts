@@ -35,7 +35,13 @@ export type WildDeclaration = {
 
 export type PlayerPhase = "notOpened" | "opened";
 
-export type TurnPhase = "draw" | "discard" | "rummyWindow";
+export type TurnPhase = "draw" | "discard" | "rummyWindow" | "reshuffle";
+
+export type ReshufflePause = {
+  resumeTurnPhase: "draw" | "rummyWindow";
+  rummyWindow?: RummyWindow;
+  activeSeatIndex: number;
+};
 
 export type RummyWindow = {
   discarderId: string;
@@ -94,6 +100,7 @@ export type GameState = {
   cumulativeScores: number[];
   rummyPenaltyCounts: Record<string, number>;
   rummyWindow?: RummyWindow;
+  reshufflePause?: ReshufflePause;
   lastRoundSummary?: RoundSummary;
   winnerPlayerIds?: string[];
 };

@@ -25,6 +25,7 @@ import type {
   LegalActions,
   OpeningMeld,
   PlayerState,
+  ReshufflePause,
   ShuffleOptions,
   TableMeld,
 } from "./types";
@@ -146,6 +147,49 @@ function applyRummyPickup(
   };
 }
 
+function applyTurnResume(discardedState: GameState, resume: ReshufflePause): GameState {
+  return {
+    ...discardedState,
+    activeSeatIndex: resume.activeSeatIndex,
+    turnPhase: resume.resumeTurnPhase,
+    rummyWindow: resume.rummyWindow,
+  };
+}
+
+function maybePauseForStockReshuffle(state: GameState, resume: ReshufflePause): GameState {
+  if (state.stock.length > 0 || state.discard.length <= 1) {
+    return state;
+  }
+
+  const reshuffled = reshuffleStockFromDiscard(state);
+  if ("error" in reshuffled) {
+    return state;
+  }
+
+  return {
+    ...reshuffled,
+    activeSeatIndex: resume.activeSeatIndex,
+    turnPhase: "reshuffle",
+    rummyWindow: undefined,
+    reshufflePause: resume,
+  };
+}
+
+export function advanceFromReshuffle(state: GameState): GameState {
+  if (state.turnPhase !== "reshuffle" || !state.reshufflePause) {
+    return state;
+  }
+
+  const pause = state.reshufflePause;
+  return {
+    ...state,
+    turnPhase: pause.resumeTurnPhase,
+    rummyWindow: pause.rummyWindow,
+    activeSeatIndex: pause.activeSeatIndex,
+    reshufflePause: undefined,
+  };
+}
+
 function completeDiscard(
   state: GameState,
   playerIndex: number,
@@ -167,33 +211,30 @@ function completeDiscard(
     discard: [...state.discard, card],
   };
   const wouldGoOut = nextHand.length === 0;
+  const nextSeat = nextSeatClockwise(state, state.activeSeatIndex);
+  const playable = isPlayableDiscard(card, state.melds);
 
-  if (isPlayableDiscard(card, state.melds)) {
-    return {
-      state: {
-        ...discardedState,
-        activeSeatIndex: nextSeatClockwise(state, state.activeSeatIndex),
-        turnPhase: "rummyWindow",
+  const resume: ReshufflePause = playable
+    ? {
+        resumeTurnPhase: "rummyWindow",
         rummyWindow: {
           discarderId: playerId,
           discardedCard: card,
           wouldGoOut,
         },
-      },
-    };
+        activeSeatIndex: nextSeat,
+      }
+    : {
+        resumeTurnPhase: "draw",
+        activeSeatIndex: nextSeat,
+      };
+
+  if (wouldGoOut && !playable) {
+    return { state: finishRound(applyTurnResume(discardedState, resume), playerId) };
   }
 
-  const advancedState: GameState = {
-    ...discardedState,
-    activeSeatIndex: nextSeatClockwise(state, state.activeSeatIndex),
-    turnPhase: "draw",
-  };
-
-  if (wouldGoOut) {
-    return { state: finishRound(advancedState, playerId) };
-  }
-
-  return { state: advancedState };
+  const nextState = maybePauseForStockReshuffle(applyTurnResume(discardedState, resume), resume);
+  return { state: nextState };
 }
 
 const GO_OUT_ERROR = "Must discard to go out";
@@ -349,6 +390,10 @@ export function legalActions(state: GameState, playerId: string): LegalActions {
     return { ...EMPTY_LEGAL_ACTIONS };
   }
 
+  if (state.turnPhase === "reshuffle") {
+    return { ...EMPTY_LEGAL_ACTIONS };
+  }
+
   const player = findPlayer(state, playerId);
   if (!player) {
     return { ...EMPTY_LEGAL_ACTIONS };
@@ -362,7 +407,7 @@ export function legalActions(state: GameState, playerId: string): LegalActions {
     return {
       ...EMPTY_LEGAL_ACTIONS,
       canDrawFromStock:
-        isNextPlayer && (state.stock.length > 0 || state.discard.length > 1),
+        isNextPlayer && state.stock.length > 0,
       canDrawFromDiscard: isNextPlayer && state.discard.length > 0,
       canCallRummy:
         !isDiscarder && isPlayableDiscard(window.discardedCard, state.melds),
@@ -375,8 +420,7 @@ export function legalActions(state: GameState, playerId: string): LegalActions {
   }
 
   if (state.turnPhase === "draw") {
-    const canDrawFromStock =
-      state.stock.length > 0 || state.discard.length > 1;
+    const canDrawFromStock = state.stock.length > 0;
     return {
       ...EMPTY_LEGAL_ACTIONS,
       canDrawFromStock,
