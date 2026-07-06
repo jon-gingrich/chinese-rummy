@@ -3,6 +3,7 @@
 import type { OpeningMeld, TableMeld } from "../../../convex/lib/rules/types";
 import type { InsertionGap } from "../../../convex/lib/rules/layoffs";
 import { seatSlotForOffset, type SeatSlot } from "../../lib/cardDisplay";
+import { TABLE_CARD_SIZE } from "../../lib/feltLayout";
 import { gapsForMeld, MeldSpread } from "../cards/MeldSpread";
 
 type BoardPlayer = {
@@ -30,10 +31,10 @@ const SLOT_ALIGN: Record<SeatSlot, string> = {
 const MELD_LAYOUT: Record<SeatSlot, string> = {
   top: "flex max-w-full flex-wrap justify-center gap-3 md:gap-4",
   bottom: "flex max-w-full flex-wrap justify-center gap-3 md:gap-4",
-  left: "flex w-full min-w-0 flex-col items-start gap-4 md:gap-5",
-  right: "flex w-full min-w-0 flex-col items-end gap-4 md:gap-5",
-  "top-left": "flex w-full min-w-0 flex-col items-start gap-4 md:gap-5",
-  "top-right": "flex w-full min-w-0 flex-col items-end gap-4 md:gap-5",
+  left: "flex w-full min-w-0 flex-col items-start gap-3 md:gap-4",
+  right: "flex w-full min-w-0 flex-col items-end gap-3 md:gap-4",
+  "top-left": "flex w-full min-w-0 flex-col items-start gap-3 md:gap-4",
+  "top-right": "flex w-full min-w-0 flex-col items-end gap-3 md:gap-4",
 };
 
 type PlayerBoardProps = {
@@ -124,7 +125,7 @@ export function PlayerBoard({
                 <MeldSpread
                   meld={meld}
                   meldId={meld.id}
-                  size="lg"
+                  size={TABLE_CARD_SIZE}
                   highlighted={highlighted}
                   insertionGaps={meldGaps}
                   activeDropGapId={activeDropGapId}

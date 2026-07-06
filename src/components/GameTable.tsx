@@ -21,6 +21,7 @@ import { findLayOffGapTargets, findValidRelocationRanks } from "../../convex/lib
 import { isJoker } from "../../convex/lib/rules/melds";
 import type { Card, LayOffTarget, TableMeld } from "../../convex/lib/rules/types";
 import { gapsMatch, parseHandCardDragId, parseMeldGapDropId } from "../lib/cardDrag";
+import { TABLE_CARD_SIZE } from "../lib/feltLayout";
 import { formatCardLabel, sortHand, type HandSortMode } from "../lib/cards";
 import { CardFan } from "./CardFan";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -1081,8 +1082,8 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
       </div>
 
       {table.phase === "playing" ? (
-        <div className="wood-rail shrink-0 overflow-visible border-t-2 border-[var(--wood-dark)] px-2 pb-1 pt-0.5">
-          <div className="mb-0.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
+        <div className="wood-rail shrink-0 overflow-visible border-t-2 border-[var(--wood-dark)] px-1.5 pb-0.5 pt-0">
+          <div className="mb-0 flex flex-wrap items-center justify-between gap-x-2 gap-y-0">
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-xs font-bold text-[var(--accent-soft)]">Your hand</p>
               <div className="flex gap-1 text-xs">
@@ -1162,14 +1163,14 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
             sortMode={handSortMode}
             onSortModeChange={setHandSortMode}
             showSortControls={false}
-            size="lg"
+            size={TABLE_CARD_SIZE}
             justDrawnCardId={justDrawnCardId}
           />
-          {status ? <p className="mt-0.5 text-xs font-semibold text-[var(--danger)]">{status}</p> : null}
+          {status ? <p className="mt-0 text-xs font-semibold text-[var(--danger)]">{status}</p> : null}
         </div>
       ) : null}
       <DragOverlay dropAnimation={null}>
-        {draggingCard ? <HandCardDragOverlay card={draggingCard} size="lg" /> : null}
+        {draggingCard ? <HandCardDragOverlay card={draggingCard} size={TABLE_CARD_SIZE} /> : null}
       </DragOverlay>
       </DndContext>
 

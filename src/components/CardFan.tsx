@@ -57,8 +57,8 @@ export function CardFan({
     sortedCards.length <= 1
       ? 0
       : Math.min(sortedCards.length * 5, sortedCards.length > 10 ? 34 : 44) / 2;
-  const bottomBuffer = Math.ceil(maxRotation * 0.35 + maxRotation * 0.5 + 6);
-  const containerHeight = fanContainerHeight(sortedCards.length, cardHeight) + bottomBuffer;
+  const bottomBuffer = Math.ceil(maxRotation * 0.75 + 4);
+  const containerHeight = fanContainerHeight(sortedCards.length, cardHeight);
   const fanWidth = Math.max(
     sortedCards.length * cardStep + cardWidth + spreadWidth,
     Math.round(cardWidth * 4.5),
@@ -94,7 +94,7 @@ export function CardFan({
         </div>
       ) : null}
 
-      <div className="overflow-x-auto overflow-y-visible pb-0.5 pt-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="overflow-x-auto overflow-y-visible [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div
           className="relative mx-auto flex items-end justify-center overflow-visible"
           style={{

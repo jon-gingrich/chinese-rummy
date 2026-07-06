@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import type { Card } from "../../../convex/lib/rules/types";
 import { scaledCardDimensions } from "../../lib/cardDisplay";
+import { TABLE_CARD_SIZE } from "../../lib/feltLayout";
 import { useCardScale } from "../../contexts/PlayerPreferencesContext";
 import { PlayingCard } from "../cards/PlayingCard";
 
@@ -19,7 +20,7 @@ type StockDiscardProps = {
   onDrawDiscard: () => void;
 };
 
-const PILE_SIZE = "xl" as const;
+const PILE_SIZE = TABLE_CARD_SIZE;
 const FLYING_CARD_DELAYS_MS = [0, 120, 240, 360, 480];
 
 function PileLabel({ children }: { children: ReactNode }) {

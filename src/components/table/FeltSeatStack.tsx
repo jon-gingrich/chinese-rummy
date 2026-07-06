@@ -13,7 +13,7 @@ type FeltSeatStackProps = {
 export function FeltSeatStack({ slot, children }: FeltSeatStackProps) {
   return (
     <div
-      className={`flex min-h-0 min-w-0 max-h-full flex-col gap-4 overflow-x-visible overflow-y-auto p-0.5 ${FELT_SEAT_STACK_ALIGN[slot]}`}
+      className={`flex min-h-0 min-w-0 flex-col gap-3 overflow-visible p-0.5 ${FELT_SEAT_STACK_ALIGN[slot]}`}
       style={{ gridArea: FELT_GRID_AREA[slot], zIndex: FELT_SEAT_Z_INDEX[slot] }}
     >
       {children}

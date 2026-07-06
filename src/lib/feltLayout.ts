@@ -1,4 +1,7 @@
-import type { SeatSlot } from "../lib/cardDisplay";
+import type { CardSize, SeatSlot } from "./cardDisplay";
+
+/** Card size used for melds, hand, and center piles on the game table. */
+export const TABLE_CARD_SIZE = "md" as const satisfies CardSize;
 
 /** Maps seat slot → CSS grid area on the felt. */
 export const FELT_GRID_AREA: Record<SeatSlot, string> = {
