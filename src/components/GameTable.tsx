@@ -1,9 +1,9 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../../convex/_generated/api";
-import type { Id } from "../../convex/_generated/dataModel";
 import { isJoker } from "../../convex/lib/rules/melds";
 import type { TableMeld } from "../../convex/lib/rules/types";
 import { formatCardLabel, sortHand, type HandSortMode } from "../lib/cards";
@@ -20,19 +20,15 @@ import { TableHud } from "./table/TableHud";
 import { MeldSpread } from "./cards/MeldSpread";
 import { useLayOffFlow } from "../hooks/useLayOffFlow";
 import { useOpeningFlow } from "../hooks/useOpeningFlow";
+import { useGameSession, type GameSession } from "../hooks/useGameSession";
 import { usePlayerPreferences } from "../contexts/PlayerPreferencesContext";
 
-export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
+export function GameTable({ session }: { session: GameSession }) {
+  const router = useRouter();
+  const game = useGameSession(session);
   const { preferences, updatePreferences } = usePlayerPreferences();
   const viewer = useQuery(api.users.viewer);
-  const table = useQuery(api.games.getGame, { roomId });
-  const hand = useQuery(api.games.getMyHand, { roomId });
-  const legalActions = useQuery(api.games.getLegalActions, { roomId });
-  const draw = useMutation(api.games.draw);
-  const discard = useMutation(api.games.discard);
-  const callRummy = useMutation(api.games.callRummy);
-  const takeBackDiscard = useMutation(api.games.takeBackDiscard);
-  const continueRound = useMutation(api.games.continueRound);
+  const { table, hand, legalActions } = game;
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [handSortMode, setHandSortMode] = useState<HandSortMode>("suit");
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
@@ -42,6 +38,10 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [handMode, setHandMode] = useState<"discard" | "opening">("discard");
+  const [substituteTarget, setSubstituteTarget] = useState<{
+    seatIndex: number;
+    displayName: string;
+  } | null>(null);
 
   const myPlayer = table?.players.find((player) => player.id === viewer?.userId);
   const mySeatIndex = myPlayer?.seatIndex ?? 0;
@@ -102,14 +102,14 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
   );
 
   const opening = useOpeningFlow({
-    roomId,
+    submitOpen: (melds) => game.open(melds),
     roundNumber: myPlayer?.contractRound ?? 1,
     hand: sortedHand,
     onStatus: setStatus,
   });
 
   const layOff = useLayOffFlow({
-    roomId,
+    performLayOff: (args) => game.layOff(args),
     hand: sortedHand,
     melds: table?.melds ?? [],
     selectedCardId: canLayOff ? selectedCardId : null,
@@ -202,7 +202,7 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
     setBusy(true);
     setStatus(null);
     try {
-      const result = await callRummy({ roomId });
+      const result = await game.callRummy();
       if (result.error) {
         setStatus(result.error);
       }
@@ -217,7 +217,7 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
     setBusy(true);
     setStatus(null);
     try {
-      const result = await takeBackDiscard({ roomId });
+      const result = await game.takeBackDiscard();
       if (result.error) {
         setStatus(result.error);
       } else {
@@ -234,7 +234,7 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
     setBusy(true);
     setStatus(null);
     try {
-      const result = await draw({ roomId, source });
+      const result = await game.draw(source);
       if (result.error) {
         setStatus(result.error);
       } else {
@@ -251,12 +251,28 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
     setBusy(true);
     setStatus(null);
     try {
-      const result = await continueRound({ roomId });
+      const result = await game.continueRound();
       if (result.error) {
         setStatus(result.error);
       }
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Could not continue");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleSubstitute() {
+    if (!substituteTarget) {
+      return;
+    }
+    setBusy(true);
+    setStatus(null);
+    try {
+      await game.substituteAutomated(substituteTarget.seatIndex);
+      setSubstituteTarget(null);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not substitute player");
     } finally {
       setBusy(false);
     }
@@ -291,7 +307,7 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
     setBusy(true);
     setStatus(null);
     try {
-      const result = await discard({ roomId, card: selectedCard });
+      const result = await game.discard(selectedCard);
       if (result.error) {
         setStatus(result.error);
       } else {
@@ -445,6 +461,25 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
         onConfirm={() => void opening.submitOpening()}
       />
 
+      <ConfirmDialog
+        open={substituteTarget !== null}
+        title="Substitute automated player?"
+        message={
+          substituteTarget ? (
+            <p>
+              Replace <span className="font-bold text-[var(--cream)]">{substituteTarget.displayName}</span>{" "}
+              with an automated player for the rest of this game. They cannot rejoin this seat.
+            </p>
+          ) : (
+            ""
+          )
+        }
+        confirmLabel="Substitute"
+        busy={busy}
+        onCancel={() => setSubstituteTarget(null)}
+        onConfirm={() => void handleSubstitute()}
+      />
+
       <TableHud
         roundNumber={table.roundNumber}
         contract={table.contract}
@@ -453,7 +488,27 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
         players={table.players}
         onRulesClick={() => setShowRules(true)}
         onHowToPlayClick={() => setShowHowToPlay(true)}
-        settingsHref={`/home/settings?returnTo=${encodeURIComponent(`/room/${roomId}`)}`}
+        settingsHref={`/home/settings?returnTo=${encodeURIComponent(game.settingsReturnTo)}`}
+        onAbandon={
+          session.mode === "practice"
+            ? () => {
+                void (async () => {
+                  if (!window.confirm("Abandon this practice game? It will leave your game list.")) {
+                    return;
+                  }
+                  setBusy(true);
+                  try {
+                    await game.abandonPractice();
+                    router.push("/home");
+                  } catch (error) {
+                    setStatus(error instanceof Error ? error.message : "Could not abandon game");
+                  } finally {
+                    setBusy(false);
+                  }
+                })();
+              }
+            : undefined
+        }
       />
 
       <div className="wood-rail relative m-1 flex min-h-0 flex-1 flex-col rounded-xl p-1 shadow-2xl">
@@ -490,6 +545,16 @@ export function GameTable({ roomId }: { roomId: Id<"rooms"> }) {
                     : undefined
                 }
                 isMe={player.id === viewer?.userId}
+                onSubstitute={
+                  player.canSubstitute
+                    ? () =>
+                        setSubstituteTarget({
+                          seatIndex: player.seatIndex,
+                          displayName: player.displayName,
+                        })
+                    : undefined
+                }
+                substituteBusy={busy}
               />
             ))}
           </FeltSurface>

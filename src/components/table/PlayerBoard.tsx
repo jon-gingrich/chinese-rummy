@@ -8,6 +8,8 @@ import { MeldSpread } from "../cards/MeldSpread";
 type BoardPlayer = {
   id: string;
   displayName: string;
+  isAutomated?: boolean;
+  canSubstitute?: boolean;
   handSize: number;
   playerPhase: "notOpened" | "opened";
   isActive: boolean;
@@ -33,6 +35,8 @@ type PlayerBoardProps = {
   onMeldClick?: (meldId: string) => void;
   onPendingMeldClick?: (index: number) => void;
   isMe?: boolean;
+  onSubstitute?: () => void;
+  substituteBusy?: boolean;
 };
 
 export function PlayerBoard({
@@ -44,6 +48,8 @@ export function PlayerBoard({
   onMeldClick,
   onPendingMeldClick,
   isMe = false,
+  onSubstitute,
+  substituteBusy = false,
 }: PlayerBoardProps) {
   const allMelds = [
     ...melds,
@@ -69,10 +75,22 @@ export function PlayerBoard({
         }`}
       >
         <span>{isMe ? "You" : player.displayName}</span>
+        {player.isAutomated ? <span className="opacity-70">(auto)</span> : null}
         <span className="opacity-70">·</span>
         <span>{player.handSize} cards</span>
         {player.isDealer ? <span title="Dealer">🎴</span> : null}
         {player.playerPhase === "opened" ? <span className="text-[var(--success)]">✓</span> : null}
+        {player.canSubstitute && onSubstitute ? (
+          <button
+            type="button"
+            disabled={substituteBusy}
+            onClick={onSubstitute}
+            className="ml-1 rounded bg-black/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--cream)] hover:bg-black/50 disabled:opacity-50"
+            title="Replace with an automated player for the rest of the game"
+          >
+            Substitute
+          </button>
+        ) : null}
       </div>
 
       {allMelds.length > 0 ? (

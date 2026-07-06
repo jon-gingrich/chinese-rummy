@@ -177,28 +177,14 @@ function CardFace({
           {cornerSuit}
         </text>
         <CenterArt suit={card.suit} rank={card.rank} asRank={asRank} playedWild={playedWild} />
-        <text
-          x="48"
-          y="72"
-          fontSize="13"
-          fontWeight="800"
-          fill={cornerRankColor}
-          textAnchor="end"
-          transform="rotate(180 48 72)"
-        >
-          {displayRank}
-        </text>
-        <text
-          x="48"
-          y="60"
-          fontSize="11"
-          fontWeight="700"
-          fill={showWildFace ? WILD_AMBER : rankColor}
-          textAnchor="end"
-          transform="rotate(180 48 60)"
-        >
-          {cornerSuit}
-        </text>
+        <g transform="translate(56, 78) rotate(180)">
+          <text x="8" y="16" fontSize="13" fontWeight="800" fill={cornerRankColor}>
+            {displayRank}
+          </text>
+          <text x="8" y="28" fontSize="11" fontWeight="700" fill={showWildFace ? WILD_AMBER : rankColor}>
+            {cornerSuit}
+          </text>
+        </g>
       </svg>
       {showWildFace && asRank ? (
         <span
@@ -237,7 +223,7 @@ export function PlayingCard({
   const interactive = Boolean(onClick) && !disabled && !displayOnly;
 
   const showWildShell = playedWild || card.rank === "JOKER";
-  const shellClasses = `relative shrink-0 overflow-visible rounded-lg border bg-[#fffef8] shadow-md transition ${className} ${
+  const shellClasses = `relative shrink-0 overflow-hidden rounded-lg border bg-[#fffef8] shadow-md transition ${className} ${
     selected
       ? "border-[var(--accent)] ring-2 ring-[var(--accent)]/50"
       : highlighted

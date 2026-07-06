@@ -173,3 +173,15 @@ _Avoid_: Slot, chair
 **Ready**:
 A player's signal that they are prepared for the host to start the game.
 _Avoid_: Locked in, set
+
+**Automated player**:
+A seat occupant controlled by server logic rather than a signed-in human. Has no user account and never calls rummy or takes back a discard.
+_Avoid_: Bot, AI player, computer player
+
+**Practice game**:
+A game with one human and one or more automated players, started without a room code. Persists and resumes like multiplayer; the human may abandon it to remove it from their game list.
+_Avoid_: Solo mode, single-player, vs AI
+
+**Substitution**:
+Replacing a seated human with an automated player for the remainder of the game, at the host's choice. The displaced human cannot reclaim the seat.
+_Avoid_: Bot takeover, AI replacement

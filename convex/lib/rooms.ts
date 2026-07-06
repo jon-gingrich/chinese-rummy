@@ -3,12 +3,30 @@ import type { Id } from "../_generated/dataModel";
 export const SEAT_COUNT = 5;
 export const MIN_PLAYERS = 2;
 
-export type Seat = {
+export type HumanSeat = {
+  kind?: "human";
   userId: Id<"users">;
   ready: boolean;
-} | null;
+};
+
+export type AutomatedSeat = {
+  kind: "automated";
+  id: string;
+  displayName: string;
+  ready: boolean;
+};
+
+export type Seat = HumanSeat | AutomatedSeat | null;
 
 export type RoomStatus = "lobby" | "playing" | "finished";
+
+export function isHumanSeat(seat: NonNullable<Seat>): seat is HumanSeat {
+  return "userId" in seat;
+}
+
+export function isAutomatedSeat(seat: NonNullable<Seat>): seat is AutomatedSeat {
+  return seat.kind === "automated";
+}
 
 export function emptySeats(): Seat[] {
   return Array.from({ length: SEAT_COUNT }, () => null);
@@ -28,10 +46,27 @@ export function canStartGame(seats: Seat[]): boolean {
 }
 
 export function findPlayerSeat(seats: Seat[], userId: Id<"users">): number | null {
-  const index = seats.findIndex((seat) => seat?.userId === userId);
+  const index = seats.findIndex(
+    (seat) => seat !== null && isHumanSeat(seat) && seat.userId === userId,
+  );
   return index === -1 ? null : index;
 }
 
 export function isSeatOpen(seats: Seat[], seatIndex: number): boolean {
   return seatIndex >= 0 && seatIndex < SEAT_COUNT && seats[seatIndex] === null;
+}
+
+export function isAutomatedSeatAt(seats: Seat[], seatIndex: number): boolean {
+  const seat = seats[seatIndex];
+  return seat !== null && seat !== undefined && isAutomatedSeat(seat);
+}
+
+export function automatedDisplayNamesInUse(seats: Seat[]): Set<string> {
+  const names = new Set<string>();
+  for (const seat of seats) {
+    if (seat && isAutomatedSeat(seat)) {
+      names.add(seat.displayName);
+    }
+  }
+  return names;
 }

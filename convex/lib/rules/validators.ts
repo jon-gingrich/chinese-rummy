@@ -144,6 +144,7 @@ export const tablePlayerValidator = v.object({
   id: v.string(),
   seatIndex: v.number(),
   displayName: v.string(),
+  isAutomated: v.boolean(),
   handSize: v.number(),
   contractRound: v.number(),
   contract: v.string(),
@@ -152,11 +153,13 @@ export const tablePlayerValidator = v.object({
   isDealer: v.boolean(),
   cumulativeScore: v.number(),
   roundScore: v.optional(v.number()),
+  canSubstitute: v.optional(v.boolean()),
 });
 
 export const tableViewValidator = v.object({
   _id: v.id("games"),
-  roomId: v.id("rooms"),
+  gameMode: v.union(v.literal("practice"), v.literal("multiplayer")),
+  roomId: v.optional(v.id("rooms")),
   roundNumber: v.number(),
   contract: v.string(),
   phase: v.union(v.literal("playing"), v.literal("roundEnd"), v.literal("gameEnd")),

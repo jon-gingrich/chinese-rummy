@@ -29,7 +29,14 @@ export default defineSchema({
     seats: v.array(
       v.union(
         v.object({
+          kind: v.optional(v.literal("human")),
           userId: v.id("users"),
+          ready: v.boolean(),
+        }),
+        v.object({
+          kind: v.literal("automated"),
+          id: v.string(),
+          displayName: v.string(),
           ready: v.boolean(),
         }),
         v.null(),
@@ -40,16 +47,32 @@ export default defineSchema({
     .index("by_code", ["code"])
     .index("by_host", ["hostId"]),
   games: defineTable({
-    roomId: v.id("rooms"),
+    gameMode: v.optional(
+      v.union(v.literal("practice"), v.literal("multiplayer")),
+    ),
+    roomId: v.optional(v.id("rooms")),
+    automatedPlayers: v.optional(
+      v.array(
+        v.object({
+          id: v.string(),
+          displayName: v.string(),
+        }),
+      ),
+    ),
     state: gameStateValidator,
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_room", ["roomId"]),
+  })
+    .index("by_room", ["roomId"]),
   gameParticipants: defineTable({
     userId: v.id("users"),
     gameId: v.id("games"),
-    roomId: v.id("rooms"),
-    roomCode: v.string(),
+    gameMode: v.optional(
+      v.union(v.literal("practice"), v.literal("multiplayer")),
+    ),
+    roomId: v.optional(v.id("rooms")),
+    roomCode: v.optional(v.string()),
+    label: v.optional(v.string()),
     status: v.union(v.literal("playing"), v.literal("finished")),
     updatedAt: v.number(),
   })

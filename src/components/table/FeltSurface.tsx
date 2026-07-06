@@ -16,7 +16,7 @@ export function FeltSurface({ center, children }: FeltSurfaceProps) {
     <div
       className="felt-surface grid h-full min-h-0 w-full gap-1.5 p-2 md:gap-2 md:p-2.5"
       style={{
-        gridTemplateColumns: "minmax(0, 1fr) minmax(11rem, max-content) minmax(0, 1fr)",
+        gridTemplateColumns: "minmax(0, 1fr) minmax(16rem, max-content) minmax(0, 1fr)",
         gridTemplateRows: "minmax(min-content, 1fr) auto minmax(min-content, 1fr)",
         gridTemplateAreas: `
           "felt-top-left felt-top felt-top-right"

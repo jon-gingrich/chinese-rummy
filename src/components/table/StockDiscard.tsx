@@ -18,7 +18,7 @@ type StockDiscardProps = {
   onDrawDiscard: () => void;
 };
 
-const PILE_SIZE = "md" as const;
+const PILE_SIZE = "xl" as const;
 
 function PileLabel({ children }: { children: ReactNode }) {
   return (

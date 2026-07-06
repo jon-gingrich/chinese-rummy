@@ -20,6 +20,8 @@ export default function RoomLobbyPage() {
   const room = useQuery(api.rooms.getRoom, { roomId });
   const joinSeat = useMutation(api.rooms.joinSeat);
   const setReady = useMutation(api.rooms.setReady);
+  const addAutomatedPlayer = useMutation(api.rooms.addAutomatedPlayer);
+  const removeAutomatedPlayer = useMutation(api.rooms.removeAutomatedPlayer);
   const startGame = useMutation(api.rooms.startGame);
   const [status, setStatus] = useState<string | null>(null);
   const [busySeat, setBusySeat] = useState<number | null>(null);
@@ -32,7 +34,13 @@ export default function RoomLobbyPage() {
   }, [ensureCurrentUser, viewer]);
 
   const mySeatIndex =
-    viewer && room ? room.seats.findIndex((seat) => seat?.userId === viewer.userId) : -1;
+    viewer && room
+      ? room.seats.findIndex(
+          (seat) => seat?.kind === "human" && seat.userId === viewer.userId,
+        )
+      : -1;
+  const mySeat = mySeatIndex >= 0 ? room?.seats[mySeatIndex] : null;
+  const myHumanSeat = mySeat?.kind === "human" ? mySeat : null;
   const isHost = viewer && room ? room.hostId === viewer.userId : false;
   const seatedCount = room?.seats.filter((seat) => seat !== null).length ?? 0;
   const allReady =
@@ -61,17 +69,37 @@ export default function RoomLobbyPage() {
     }
   }
 
-  async function handleReadyToggle() {
-    if (!room || mySeatIndex < 0) {
-      return;
+  async function handleAddAutomated(seatIndex: number) {
+    setBusySeat(seatIndex);
+    setStatus(null);
+    try {
+      await addAutomatedPlayer({ roomId, seatIndex });
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not add automated player");
+    } finally {
+      setBusySeat(null);
     }
-    const current = room.seats[mySeatIndex];
-    if (!current) {
+  }
+
+  async function handleRemoveAutomated(seatIndex: number) {
+    setBusySeat(seatIndex);
+    setStatus(null);
+    try {
+      await removeAutomatedPlayer({ roomId, seatIndex });
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not remove automated player");
+    } finally {
+      setBusySeat(null);
+    }
+  }
+
+  async function handleReadyToggle() {
+    if (!room || !myHumanSeat) {
       return;
     }
     setStatus(null);
     try {
-      await setReady({ roomId, ready: !current.ready });
+      await setReady({ roomId, ready: !myHumanSeat.ready });
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Could not update ready status");
     }
@@ -129,7 +157,7 @@ export default function RoomLobbyPage() {
             {isGuest && viewer ? <LinkAccountPrompt userId={viewer.userId} compact /> : null}
           </div>
           <div className="flex min-h-0 flex-1 flex-col">
-            <GameTable roomId={roomId} />
+            <GameTable session={{ mode: "multiplayer", roomId }} />
           </div>
         </div>
       </ScreenSizeGate>
@@ -174,7 +202,10 @@ export default function RoomLobbyPage() {
         {room.seats.map((seat, index) => {
           const isMine = index === mySeatIndex;
           const isOpen = seat === null;
+          const isAutomated = seat?.kind === "automated";
           const canClaim = isOpen && room.status === "lobby" && mySeatIndex < 0;
+          const canAddAutomated = isHost && isOpen && room.status === "lobby";
+          const canRemoveAutomated = isHost && isAutomated && room.status === "lobby";
 
           return (
             <div
@@ -187,6 +218,9 @@ export default function RoomLobbyPage() {
                   <p className="text-lg font-bold text-[var(--cream)]">
                     {seat ? seat.displayName : "Open"}
                   </p>
+                  {isAutomated ? (
+                    <p className="text-xs text-[var(--muted)]">Automated player</p>
+                  ) : null}
                 </div>
                 {seat ? (
                   <span
@@ -211,15 +245,37 @@ export default function RoomLobbyPage() {
                   {busySeat === index ? "Joining…" : "Take this seat"}
                 </button>
               ) : null}
+
+              {canAddAutomated ? (
+                <button
+                  type="button"
+                  disabled={busySeat === index}
+                  onClick={() => void handleAddAutomated(index)}
+                  className="game-btn-secondary mt-4 w-full text-sm"
+                >
+                  {busySeat === index ? "Adding…" : "Add automated player"}
+                </button>
+              ) : null}
+
+              {canRemoveAutomated ? (
+                <button
+                  type="button"
+                  disabled={busySeat === index}
+                  onClick={() => void handleRemoveAutomated(index)}
+                  className="game-btn-secondary mt-4 w-full text-sm"
+                >
+                  {busySeat === index ? "Removing…" : "Remove automated player"}
+                </button>
+              ) : null}
             </div>
           );
         })}
       </section>
 
-      {mySeatIndex >= 0 && room.status === "lobby" ? (
+      {myHumanSeat && room.status === "lobby" ? (
         <section className="mt-6 flex flex-wrap gap-3">
           <button type="button" onClick={() => void handleReadyToggle()} className="game-btn-primary">
-            {room.seats[mySeatIndex]?.ready ? "Mark not ready" : "Mark ready"}
+            {myHumanSeat.ready ? "Mark not ready" : "Mark ready"}
           </button>
 
           {isHost ? (
@@ -237,7 +293,7 @@ export default function RoomLobbyPage() {
 
       {isHost && room.status === "lobby" && seatedCount < 2 ? (
         <p className="mt-4 text-sm text-[var(--muted)]">
-          Waiting for at least one more player before you can start.
+          Waiting for at least one more player — invite someone or add an automated player.
         </p>
       ) : null}
 

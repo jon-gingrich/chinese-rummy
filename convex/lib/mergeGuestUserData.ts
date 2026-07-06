@@ -1,28 +1,8 @@
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import type { GameState } from "./rules";
-
-function replaceUserIdInGameState(state: GameState, fromUserId: string, toUserId: string): GameState {
-  if (fromUserId === toUserId) {
-    return state;
-  }
-
-  return {
-    ...state,
-    players: state.players.map((player) =>
-      player.id === fromUserId ? { ...player, id: toUserId } : player,
-    ),
-    melds: state.melds.map((meld) =>
-      meld.ownerId === fromUserId
-        ? {
-            ...meld,
-            ownerId: toUserId,
-            id: meld.id.replace(fromUserId, toUserId),
-          }
-        : meld,
-    ),
-  };
-}
+import { isHumanSeat } from "./rooms";
+import { replacePlayerIdInGameState } from "./substitution";
 
 export async function mergeGuestUserData(
   ctx: MutationCtx,
@@ -56,7 +36,7 @@ export async function mergeGuestUserData(
   for (const room of rooms) {
     let changed = false;
     const seats = room.seats.map((seat) => {
-      if (seat?.userId === args.guestUserId) {
+      if (seat !== null && isHumanSeat(seat) && seat.userId === args.guestUserId) {
         changed = true;
         return { ...seat, userId: args.targetUserId };
       }
@@ -77,7 +57,7 @@ export async function mergeGuestUserData(
     if (room.gameId) {
       const game = await ctx.db.get("games", room.gameId);
       if (game) {
-        const nextState = replaceUserIdInGameState(
+        const nextState = replacePlayerIdInGameState(
           game.state as GameState,
           args.guestUserId,
           args.targetUserId,

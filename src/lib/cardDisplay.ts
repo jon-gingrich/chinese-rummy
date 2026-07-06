@@ -1,12 +1,13 @@
 import type { Card, NaturalRank, WildDeclaration } from "../../convex/lib/rules/types";
 
-export type CardSize = "xs" | "sm" | "md" | "lg";
+export type CardSize = "xs" | "sm" | "md" | "lg" | "xl";
 
 export const CARD_DIMENSIONS: Record<CardSize, { width: number; height: number }> = {
   xs: { width: 47, height: 65 },
   sm: { width: 57, height: 81 },
   md: { width: 73, height: 101 },
   lg: { width: 94, height: 130 },
+  xl: { width: 108, height: 150 },
 };
 
 export type DisplayScale = "small" | "medium" | "large";

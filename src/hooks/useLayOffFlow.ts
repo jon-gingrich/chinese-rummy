@@ -1,9 +1,6 @@
 "use client";
 
-import { useMutation } from "convex/react";
 import { useEffect, useMemo, useState } from "react";
-import { api } from "../../convex/_generated/api";
-import type { Id } from "../../convex/_generated/dataModel";
 import { findLayOffTargets } from "../../convex/lib/rules/layoffs";
 import { isJoker } from "../../convex/lib/rules/melds";
 import type { Card, LayOffTarget, NaturalRank, TableMeld } from "../../convex/lib/rules/types";
@@ -32,21 +29,29 @@ export function targetKey(target: LayOffTarget): string {
 }
 
 export function useLayOffFlow({
-  roomId,
+  performLayOff,
   hand,
   melds,
   selectedCardId,
   onStatus,
   onComplete,
 }: {
-  roomId: Id<"rooms">;
+  performLayOff: (args: {
+    targetMeldId: string;
+    card: Card;
+    replaceWildCardId?: string;
+    relocation?: {
+      destinationMeldId: string;
+      wildDeclaration?: { cardId: string; asRank: NaturalRank };
+    };
+    wildDeclaration?: { cardId: string; asRank: NaturalRank };
+  }) => Promise<{ error?: string } | undefined>;
   hand: Card[];
   melds: TableMeld[];
   selectedCardId: string | null;
   onStatus: (message: string | null) => void;
   onComplete?: () => void;
 }) {
-  const layOff = useMutation(api.games.layOff);
   const [selectedTargetKey, setSelectedTargetKey] = useState<string | null>(null);
   const [destinationMeldId, setDestinationMeldId] = useState<string | null>(null);
   const [wildRank, setWildRank] = useState<NaturalRank>("7");
@@ -121,8 +126,7 @@ export function useLayOffFlow({
     setBusy(true);
     onStatus(null);
     try {
-      const result = await layOff({
-        roomId,
+      const result = await performLayOff({
         targetMeldId: selectedTarget.meldId,
         card: selectedCard,
         replaceWildCardId:
@@ -142,7 +146,7 @@ export function useLayOffFlow({
             : undefined,
       });
 
-      if (result.error) {
+      if (result?.error) {
         onStatus(result.error);
       } else {
         setSelectedTargetKey(null);

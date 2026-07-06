@@ -10,6 +10,53 @@ import { LinkAccountPrompt } from "../../components/LinkAccountPrompt";
 import { AuthErrorBanner } from "../../components/AuthErrorBanner";
 import { useGuestAuth } from "../../hooks/useGuestAuth";
 
+function PracticeActions() {
+  const router = useRouter();
+  const startPractice = useMutation(api.practice.startPracticeGame);
+  const [opponentCount, setOpponentCount] = useState(3);
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleStartPractice() {
+    setStarting(true);
+    setError(null);
+    try {
+      const gameId = await startPractice({ opponentCount });
+      router.push(`/practice/${gameId}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not start practice game");
+      setStarting(false);
+    }
+  }
+
+  return (
+    <div className="mt-4 space-y-3">
+      <label className="block text-sm text-[var(--muted)]">
+        Automated opponents
+        <select
+          value={opponentCount}
+          onChange={(event) => setOpponentCount(Number(event.target.value))}
+          className="game-input mt-1"
+        >
+          <option value={1}>1 opponent (heads-up)</option>
+          <option value={2}>2 opponents</option>
+          <option value={3}>3 opponents (default)</option>
+          <option value={4}>4 opponents</option>
+        </select>
+      </label>
+      <button
+        type="button"
+        onClick={() => void handleStartPractice()}
+        disabled={starting}
+        className="game-btn-primary"
+      >
+        {starting ? "Starting…" : "Play vs automated players"}
+      </button>
+      {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
+    </div>
+  );
+}
+
 function MyGamesList() {
   const router = useRouter();
   const myGames = useQuery(api.games.getMyGames);
@@ -30,7 +77,9 @@ function MyGamesList() {
           className="flex items-center justify-between gap-4 rounded-xl bg-black/20 px-4 py-3"
         >
           <div className="min-w-0">
-            <p className="font-bold tracking-wide text-[var(--cream)]">{game.roomCode}</p>
+            <p className="font-bold tracking-wide text-[var(--cream)]">
+              {game.gameMode === "practice" ? "Practice" : game.roomCode}
+            </p>
             <p className="text-sm text-[var(--muted)]">
               Round {game.roundNumber} · {game.contract}
             </p>
@@ -41,7 +90,13 @@ function MyGamesList() {
           </div>
           <button
             type="button"
-            onClick={() => router.push(`/room/${game.roomId}`)}
+            onClick={() =>
+              router.push(
+                game.gameMode === "practice"
+                  ? `/practice/${game.gameId}`
+                  : `/room/${game.roomId}`,
+              )
+            }
             className="game-btn-primary shrink-0 px-3 py-2 text-xs"
           >
             Resume
@@ -171,7 +226,7 @@ export default function HomePage() {
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="game-panel p-6">
+        <section className="game-panel p-6 lg:col-span-2">
           <h2 className="text-lg font-bold text-[var(--accent-soft)]">Display name</h2>
           <p className="mt-1 text-sm text-[var(--muted)]">Other players will see this at the table.</p>
           <form onSubmit={(event) => void handleSave(event)} className="mt-4 space-y-3">
@@ -188,6 +243,14 @@ export default function HomePage() {
             </button>
           </form>
           {status ? <p className="mt-3 text-sm text-[var(--muted)]">{status}</p> : null}
+        </section>
+
+        <section className="game-panel p-6">
+          <h2 className="text-lg font-bold text-[var(--accent-soft)]">Practice</h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            Play solo against automated opponents. Practice games save to My games until you abandon them.
+          </p>
+          <PracticeActions />
         </section>
 
         <section className="game-panel p-6">

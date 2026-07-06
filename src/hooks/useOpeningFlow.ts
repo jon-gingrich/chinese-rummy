@@ -1,9 +1,6 @@
 "use client";
 
-import { useMutation } from "convex/react";
 import { useEffect, useMemo, useState } from "react";
-import { api } from "../../convex/_generated/api";
-import type { Id } from "../../convex/_generated/dataModel";
 import { getContractForRound } from "../../convex/lib/rules/contracts";
 import {
   findValidWildRanksForOpeningMeld,
@@ -30,17 +27,16 @@ const NATURAL_RANKS: NaturalRank[] = [
 ];
 
 export function useOpeningFlow({
-  roomId,
+  submitOpen,
   roundNumber,
   hand,
   onStatus,
 }: {
-  roomId: Id<"rooms">;
+  submitOpen: (melds: OpeningMeld[]) => Promise<{ error?: string } | undefined>;
   roundNumber: number;
   hand: Card[];
   onStatus: (message: string | null) => void;
 }) {
-  const open = useMutation(api.games.open);
   const [pendingMelds, setPendingMelds] = useState<OpeningMeld[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [wildRanks, setWildRanks] = useState<Record<string, NaturalRank>>({});
@@ -286,8 +282,8 @@ export function useOpeningFlow({
     setBusy(true);
     onStatus(null);
     try {
-      const result = await open({ roomId, melds: pendingMelds });
-      if (result.error) {
+      const result = await submitOpen(pendingMelds);
+      if (result?.error) {
         onStatus(result.error);
       } else {
         setPendingMelds([]);

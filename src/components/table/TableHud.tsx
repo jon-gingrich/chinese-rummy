@@ -21,6 +21,7 @@ type TableHudProps = {
   onRulesClick: () => void;
   onHowToPlayClick: () => void;
   settingsHref?: string;
+  onAbandon?: () => void;
 };
 
 export function TableHud({
@@ -32,6 +33,7 @@ export function TableHud({
   onRulesClick,
   onHowToPlayClick,
   settingsHref,
+  onAbandon,
 }: TableHudProps) {
   const sortedByScore = [...players].sort((a, b) => a.cumulativeScore - b.cumulativeScore);
 
@@ -74,6 +76,11 @@ export function TableHud({
         <button type="button" onClick={onRulesClick} className="game-btn-secondary px-3 py-1.5 text-xs">
           Rules
         </button>
+        {onAbandon ? (
+          <button type="button" onClick={onAbandon} className="game-btn-secondary px-3 py-1.5 text-xs">
+            Abandon
+          </button>
+        ) : null}
         {settingsHref ? (
           <Link href={settingsHref} className="game-btn-secondary px-3 py-1.5 text-xs">
             Settings
