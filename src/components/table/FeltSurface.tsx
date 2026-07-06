@@ -14,11 +14,11 @@ type FeltSurfaceProps = {
 export function FeltSurface({ center, children }: FeltSurfaceProps) {
   return (
     <div
-      className="felt-surface grid h-full min-h-0 w-full gap-1 p-1.5 md:gap-1.5 md:p-2"
+      className="felt-surface grid h-full min-h-0 w-full gap-x-1 gap-y-2 p-1.5 md:gap-x-1.5 md:gap-y-3 md:p-2"
       style={{
         gridTemplateColumns:
           "minmax(0, 1.2fr) minmax(11rem, max-content) minmax(0, 1.2fr)",
-        gridTemplateRows: "minmax(0, 1.2fr) auto minmax(0, 1fr)",
+        gridTemplateRows: "minmax(min-content, 1.2fr) auto minmax(min-content, 1fr)",
         gridTemplateAreas: `
           "felt-top-left felt-top felt-top-right"
           "felt-left     felt-center felt-right"

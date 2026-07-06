@@ -2,7 +2,6 @@
 
 import type { OpeningMeld, TableMeld } from "../../../convex/lib/rules/types";
 import type { InsertionGap } from "../../../convex/lib/rules/layoffs";
-import { FELT_GRID_AREA } from "../../lib/feltLayout";
 import { seatSlotForOffset, type SeatSlot } from "../../lib/cardDisplay";
 import { gapsForMeld, MeldSpread } from "../cards/MeldSpread";
 
@@ -31,10 +30,10 @@ const SLOT_ALIGN: Record<SeatSlot, string> = {
 const MELD_LAYOUT: Record<SeatSlot, string> = {
   top: "flex max-w-full flex-wrap justify-center gap-3 md:gap-4",
   bottom: "flex max-w-full flex-wrap justify-center gap-3 md:gap-4",
-  left: "flex w-full min-w-0 flex-col items-start gap-3",
-  right: "flex w-full min-w-0 flex-col items-end gap-3",
-  "top-left": "flex w-full min-w-0 flex-col items-start gap-3",
-  "top-right": "flex w-full min-w-0 flex-col items-end gap-3",
+  left: "flex w-full min-w-0 flex-col items-start gap-4 md:gap-5",
+  right: "flex w-full min-w-0 flex-col items-end gap-4 md:gap-5",
+  "top-left": "flex w-full min-w-0 flex-col items-start gap-4 md:gap-5",
+  "top-right": "flex w-full min-w-0 flex-col items-end gap-4 md:gap-5",
 };
 
 type PlayerBoardProps = {
@@ -78,10 +77,7 @@ export function PlayerBoard({
   ];
 
   return (
-    <div
-      className={`flex min-h-0 min-w-0 flex-col gap-2 p-1 ${SLOT_ALIGN[slot]}`}
-      style={{ gridArea: FELT_GRID_AREA[slot] }}
-    >
+    <div className={`flex min-h-0 min-w-0 shrink-0 flex-col gap-2 ${SLOT_ALIGN[slot]}`}>
       <div
         className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-1 text-xs font-bold shadow-md ${
           player.isActive
@@ -119,11 +115,11 @@ export function PlayerBoard({
             return (
               <div
                 key={meld.id}
-                className={
+                className={`shrink-0 ${
                   isPending
                     ? "rounded-lg ring-2 ring-dashed ring-[var(--accent)]/50"
                     : ""
-                }
+                }`}
               >
                 <MeldSpread
                   meld={meld}

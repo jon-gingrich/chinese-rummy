@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { groupLayoutsBySlot } from "../../src/components/table/FeltSeatStack";
 import { meldOverlapPx, meldSpreadWidthPx } from "../../src/lib/feltLayout";
 
 describe("feltLayout", () => {
@@ -17,5 +18,18 @@ describe("feltLayout", () => {
     const legacySpread = cardWidth + (cardCount - 1) * (cardWidth - legacyOverlap);
 
     expect(spread).toBeGreaterThan(legacySpread);
+  });
+});
+
+describe("groupLayoutsBySlot", () => {
+  it("groups multiple players that share a seat slot", () => {
+    const grouped = groupLayoutsBySlot([
+      { slot: "right" as const, playerId: "a" },
+      { slot: "right" as const, playerId: "b" },
+      { slot: "left" as const, playerId: "c" },
+    ]);
+
+    expect(grouped.get("right")?.map((entry) => entry.playerId)).toEqual(["a", "b"]);
+    expect(grouped.get("left")?.map((entry) => entry.playerId)).toEqual(["c"]);
   });
 });

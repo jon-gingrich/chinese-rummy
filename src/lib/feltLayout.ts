@@ -10,6 +10,29 @@ export const FELT_GRID_AREA: Record<SeatSlot, string> = {
   "top-right": "felt-top-right",
 };
 
+/** Alignment for stacked player boards inside a felt grid cell. */
+export const FELT_SEAT_STACK_ALIGN: Record<SeatSlot, string> = {
+  top: "items-center",
+  bottom: "items-center",
+  left: "items-start",
+  right: "items-end",
+  "top-left": "items-start",
+  "top-right": "items-end",
+};
+
+/**
+ * Lower rows sit above upper rows when content would otherwise spill across grid bands,
+ * so drag targets on nearer opponents stay reachable.
+ */
+export const FELT_SEAT_Z_INDEX: Record<SeatSlot, number> = {
+  top: 10,
+  "top-left": 10,
+  "top-right": 10,
+  left: 20,
+  right: 20,
+  bottom: 30,
+};
+
 export function meldOverlapPx(
   cardWidth: number,
   kind: "set" | "run",

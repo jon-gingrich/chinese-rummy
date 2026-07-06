@@ -30,6 +30,7 @@ import { HandCardDragOverlay } from "./cards/DraggableHandCard";
 import { HowToPlayOverlay } from "./table/HowToPlayOverlay";
 import { ActionDock, WildRankPicker } from "./table/ActionDock";
 import { FeltSurface } from "./table/FeltSurface";
+import { FeltSeatStack, groupLayoutsBySlot } from "./table/FeltSeatStack";
 import { layoutPlayers, PlayerBoard } from "./table/PlayerBoard";
 import { RoundSummaryOverlay } from "./table/RoundSummaryOverlay";
 import { StockDiscard } from "./table/StockDiscard";
@@ -638,7 +639,9 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
     );
   }
 
-  const playerLayouts = layoutPlayers(table.players, mySeatIndex, table.players.length);
+  const playerLayoutsBySlot = groupLayoutsBySlot(
+    layoutPlayers(table.players, mySeatIndex, table.players.length),
+  );
   const showRoundOverlay = Boolean(table.lastRoundSummary) || table.phase === "gameEnd";
   const goerName =
     table.players.find((player) => player.id === table.lastRoundSummary?.goerPlayerId)
@@ -795,34 +798,38 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
               ) : null
             }
           >
-            {playerLayouts.map(({ player, slot }) => (
-              <PlayerBoard
-                key={player.id}
-                player={player}
-                slot={slot}
-                melds={meldsByOwner.get(player.id) ?? []}
-                pendingMelds={player.id === viewer?.userId ? opening.pendingMelds : []}
-                highlightMeldIds={layOff.highlightMeldIds}
-                layOffGapTargets={draggingCardId ? layOffGapTargets : []}
-                activeDropGapId={activeDropGapId}
-                onMeldClick={canLayOff && selectedCardId ? layOff.selectMeld : undefined}
-                onPendingMeldClick={
-                  isOpeningHandMode && player.id === viewer?.userId
-                    ? (index) => opening.removePendingMeldsFrom(index)
-                    : undefined
-                }
-                isMe={player.id === viewer?.userId}
-                onSubstitute={
-                  player.canSubstitute
-                    ? () =>
-                        setSubstituteTarget({
-                          seatIndex: player.seatIndex,
-                          displayName: player.displayName,
-                        })
-                    : undefined
-                }
-                substituteBusy={busy}
-              />
+            {Array.from(playerLayoutsBySlot.entries()).map(([slot, layouts]) => (
+              <FeltSeatStack key={slot} slot={slot}>
+                {layouts.map(({ player, slot: playerSlot }) => (
+                  <PlayerBoard
+                    key={player.id}
+                    player={player}
+                    slot={playerSlot}
+                    melds={meldsByOwner.get(player.id) ?? []}
+                    pendingMelds={player.id === viewer?.userId ? opening.pendingMelds : []}
+                    highlightMeldIds={layOff.highlightMeldIds}
+                    layOffGapTargets={draggingCardId ? layOffGapTargets : []}
+                    activeDropGapId={activeDropGapId}
+                    onMeldClick={canLayOff && selectedCardId ? layOff.selectMeld : undefined}
+                    onPendingMeldClick={
+                      isOpeningHandMode && player.id === viewer?.userId
+                        ? (index) => opening.removePendingMeldsFrom(index)
+                        : undefined
+                    }
+                    isMe={player.id === viewer?.userId}
+                    onSubstitute={
+                      player.canSubstitute
+                        ? () =>
+                            setSubstituteTarget({
+                              seatIndex: player.seatIndex,
+                              displayName: player.displayName,
+                            })
+                        : undefined
+                    }
+                    substituteBusy={busy}
+                  />
+                ))}
+              </FeltSeatStack>
             ))}
           </FeltSurface>
 
