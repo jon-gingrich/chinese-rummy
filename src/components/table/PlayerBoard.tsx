@@ -27,6 +27,16 @@ const SLOT_ALIGN: Record<SeatSlot, string> = {
   "top-right": "items-end justify-start",
 };
 
+/** Side/corner seats stack melds so long runs get the full column width. */
+const MELD_LAYOUT: Record<SeatSlot, string> = {
+  top: "flex max-w-full flex-wrap justify-center gap-3 md:gap-4",
+  bottom: "flex max-w-full flex-wrap justify-center gap-3 md:gap-4",
+  left: "flex w-full min-w-0 flex-col items-start gap-3",
+  right: "flex w-full min-w-0 flex-col items-end gap-3",
+  "top-left": "flex w-full min-w-0 flex-col items-start gap-3",
+  "top-right": "flex w-full min-w-0 flex-col items-end gap-3",
+};
+
 type PlayerBoardProps = {
   player: BoardPlayer;
   slot: SeatSlot;
@@ -99,11 +109,7 @@ export function PlayerBoard({
       </div>
 
       {allMelds.length > 0 ? (
-        <div
-          className={`flex max-w-full flex-wrap gap-3 overflow-visible md:gap-4 ${
-            slot === "bottom" || slot === "top" ? "justify-center" : ""
-          }`}
-        >
+        <div className={`${MELD_LAYOUT[slot]} overflow-visible`}>
           {allMelds.map((meld) => {
             const isPending = meld.id.startsWith("pending-");
             const pendingIndex = isPending ? Number(meld.id.slice("pending-".length)) : -1;

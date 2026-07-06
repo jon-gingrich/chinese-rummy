@@ -44,7 +44,7 @@ export function MeldSpread({
 }: MeldSpreadProps) {
   const cardScale = useCardScale();
   const { width: cardWidth, height: cardHeight } = scaledCardDimensions(size, cardScale);
-  const overlap = meldOverlapPx(cardWidth, meld.kind, compact);
+  const overlap = meldOverlapPx(cardWidth, meld.kind, compact, meld.cards.length);
   const wildDeclarations = "wildDeclarations" in meld ? meld.wildDeclarations : [];
   const resolvedMeldId = meldIdProp ?? ("id" in meld ? meld.id : undefined);
   const showGaps = insertionGaps.length > 0 && resolvedMeldId !== undefined;

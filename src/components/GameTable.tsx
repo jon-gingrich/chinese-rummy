@@ -743,8 +743,8 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-      <div className="wood-rail relative m-1 flex min-h-0 flex-1 flex-col rounded-xl p-1 shadow-2xl">
-        <div className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-visible rounded-lg">
+      <div className="wood-rail relative m-0.5 flex min-h-0 flex-1 flex-col rounded-xl p-0.5 shadow-2xl md:m-1 md:p-1">
+        <div className="relative min-h-0 flex-1 overflow-x-auto overflow-y-visible rounded-lg">
           <FeltSurface
             center={
               table.phase === "playing" ? (
