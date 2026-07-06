@@ -1,15 +1,32 @@
 "use client";
 
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  pointerWithin,
+  rectIntersection,
+  useSensor,
+  useSensors,
+  type CollisionDetection,
+  type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
 import { useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api } from "../../convex/_generated/api";
+import { findLayOffGapTargets } from "../../convex/lib/rules/layoffs";
 import { isJoker } from "../../convex/lib/rules/melds";
-import type { TableMeld } from "../../convex/lib/rules/types";
+import type { Card, LayOffTarget, TableMeld } from "../../convex/lib/rules/types";
+import { gapsMatch, parseHandCardDragId, parseMeldGapDropId } from "../lib/cardDrag";
 import { formatCardLabel, sortHand, type HandSortMode } from "../lib/cards";
 import { CardFan } from "./CardFan";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { LayOffDropDialog } from "./LayOffDropDialog";
 import { RulesReference } from "./RulesReference";
+import { HandCardDragOverlay } from "./cards/DraggableHandCard";
 import { HowToPlayOverlay } from "./table/HowToPlayOverlay";
 import { ActionDock, WildRankPicker } from "./table/ActionDock";
 import { FeltSurface } from "./table/FeltSurface";
@@ -23,7 +40,14 @@ import { useOpeningFlow } from "../hooks/useOpeningFlow";
 import { useGameSession, type GameSession } from "../hooks/useGameSession";
 import { usePlayerPreferences } from "../contexts/PlayerPreferencesContext";
 
-export function GameTable({ session }: { session: GameSession }) {
+type GameTableProps = {
+  session: GameSession;
+  backHref?: string;
+  headerLabel?: string;
+  headerExtra?: ReactNode;
+};
+
+export function GameTable({ session, backHref, headerLabel, headerExtra }: GameTableProps) {
   const router = useRouter();
   const game = useGameSession(session);
   const { preferences, updatePreferences } = usePlayerPreferences();
@@ -42,6 +66,19 @@ export function GameTable({ session }: { session: GameSession }) {
     seatIndex: number;
     displayName: string;
   } | null>(null);
+  const [draggingCardId, setDraggingCardId] = useState<string | null>(null);
+  const [activeDropGapId, setActiveDropGapId] = useState<string | null>(null);
+  const [layOffDropDialog, setLayOffDropDialog] = useState<{
+    card: Card;
+    target: LayOffTarget;
+  } | null>(null);
+  const activeDropGapIdRef = useRef<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 10 },
+    }),
+  );
 
   const myPlayer = table?.players.find((player) => player.id === viewer?.userId);
   const mySeatIndex = myPlayer?.seatIndex ?? 0;
@@ -139,6 +176,30 @@ export function GameTable({ session }: { session: GameSession }) {
       ? [selectedCardId]
       : [];
 
+  const draggingCard = useMemo(
+    () => sortedHand.find((entry) => entry.id === draggingCardId) ?? null,
+    [sortedHand, draggingCardId],
+  );
+
+  const layOffGapTargets = useMemo(() => {
+    if (!draggingCard || !canLayOff) {
+      return [];
+    }
+    // canLayOff is only true when opened and not on the opening turn.
+    return findLayOffGapTargets(table?.melds ?? [], draggingCard, true, false);
+  }, [canLayOff, draggingCard, table?.melds]);
+
+  const layOffCollisionDetection: CollisionDetection = (args) => {
+    const pointerHits = pointerWithin(args);
+    if (pointerHits.length > 0) {
+      return pointerHits;
+    }
+    return rectIntersection(args);
+  };
+
+  const dragLayOffEnabled =
+    canLayOff && !busy && !isOpeningHandMode && table?.turnPhase === "discard";
+
   const openingUndoButton =
     isOpeningHandMode && opening.pendingMelds.length > 0 ? (
       <button
@@ -192,8 +253,8 @@ export function GameTable({ session }: { session: GameSession }) {
     }
     if (canLayOff) {
       return selectedCardId
-        ? "Tap a highlighted meld to lay off"
-        : "Select a card to lay off";
+        ? "Drag to a gap between cards, or tap a highlighted meld"
+        : "Drag a card onto a meld gap to lay off";
     }
     return selectedCardId ? "Discard selected card" : "Select a card to discard";
   }, [table, isMyTurn, canOpen, isOpeningHandMode, canLayOff, selectedCardId, opening.nextRequirement, opening.progressLabel, isRummyWindow, canCallRummy, canTakeBackDiscard]);
@@ -391,6 +452,87 @@ export function GameTable({ session }: { session: GameSession }) {
     setStatus(null);
   }
 
+  function handleDragStart(event: DragStartEvent) {
+    const cardId = parseHandCardDragId(String(event.active.id));
+    if (cardId) {
+      setDraggingCardId(cardId);
+      setSelectedCardId(cardId);
+    }
+  }
+
+  function handleDragOver(event: DragOverEvent) {
+    const overId = event.over ? String(event.over.id) : null;
+    activeDropGapIdRef.current = overId;
+    setActiveDropGapId(overId);
+  }
+
+  function resolveLayOffGapTarget(card: Card, dropId: string) {
+    const drop = parseMeldGapDropId(dropId);
+    if (!drop) {
+      return null;
+    }
+
+    const gapTargets = findLayOffGapTargets(table?.melds ?? [], card, true, false);
+
+    return (
+      gapTargets.find(
+        (entry) => entry.meldId === drop.meldId && gapsMatch(entry.gap, drop.gap),
+      ) ?? null
+    );
+  }
+
+  async function handleLayOffDrop(card: Card, target: LayOffTarget) {
+    if (layOff.targetNeedsFollowUp(target, card)) {
+      layOff.selectTarget(target);
+      setSelectedCardId(card.id);
+      setLayOffDropDialog({ card, target });
+      return;
+    }
+
+    await layOff.submitLayOffFor(card, target);
+    setSelectedCardId(null);
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const cardId = parseHandCardDragId(String(event.active.id));
+    const overId = event.over ? String(event.over.id) : activeDropGapIdRef.current;
+    setDraggingCardId(null);
+    setActiveDropGapId(null);
+    activeDropGapIdRef.current = null;
+
+    if (!cardId || !overId) {
+      return;
+    }
+
+    const card = sortedHand.find((entry) => entry.id === cardId);
+    if (!card) {
+      return;
+    }
+
+    const gapTarget = resolveLayOffGapTarget(card, overId);
+    if (!gapTarget) {
+      return;
+    }
+
+    void handleLayOffDrop(card, gapTarget.layOffTarget);
+  }
+
+  async function confirmLayOffDropDialog() {
+    if (!layOffDropDialog) {
+      return;
+    }
+
+    const { card, target } = layOffDropDialog;
+    if (target.mode === "replaceWild" && !layOff.destinationMeldId) {
+      setStatus("Choose where to relocate the wild");
+      return;
+    }
+
+    await layOff.submitLayOffFor(card, target);
+    setLayOffDropDialog(null);
+    setSelectedCardId(null);
+  }
+
   if (
     table === undefined ||
     hand === undefined ||
@@ -480,12 +622,39 @@ export function GameTable({ session }: { session: GameSession }) {
         onConfirm={() => void handleSubstitute()}
       />
 
+      <LayOffDropDialog
+        open={layOffDropDialog !== null}
+        card={layOffDropDialog?.card ?? null}
+        target={layOffDropDialog?.target ?? null}
+        melds={table?.melds ?? []}
+        wildRank={layOff.wildRank}
+        validWildRanks={layOff.validWildRanks}
+        destinationMeldId={layOff.destinationMeldId}
+        relocationDestinations={
+          layOffDropDialog?.target.mode === "replaceWild"
+            ? layOffDropDialog.target.relocationDestinations
+            : []
+        }
+        naturalRanks={layOff.naturalRanks}
+        busy={layOff.busy}
+        onWildRankChange={layOff.setWildRank}
+        onDestinationChange={layOff.setDestinationMeldId}
+        onCancel={() => {
+          setLayOffDropDialog(null);
+          layOff.clearTarget();
+        }}
+        onConfirm={() => void confirmLayOffDropDialog()}
+      />
+
       <TableHud
         roundNumber={table.roundNumber}
         contract={table.contract}
         turnMessage={turnMessage}
         isMyTurn={isMyTurn && table.phase === "playing"}
         players={table.players}
+        backHref={backHref}
+        headerLabel={headerLabel}
+        headerExtra={headerExtra}
         onRulesClick={() => setShowRules(true)}
         onHowToPlayClick={() => setShowHowToPlay(true)}
         settingsHref={`/home/settings?returnTo=${encodeURIComponent(game.settingsReturnTo)}`}
@@ -511,6 +680,13 @@ export function GameTable({ session }: { session: GameSession }) {
         }
       />
 
+      <DndContext
+        sensors={sensors}
+        collisionDetection={layOffCollisionDetection}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+      >
       <div className="wood-rail relative m-1 flex min-h-0 flex-1 flex-col rounded-xl p-1 shadow-2xl">
         <div className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-visible rounded-lg">
           <FeltSurface
@@ -538,6 +714,8 @@ export function GameTable({ session }: { session: GameSession }) {
                 melds={meldsByOwner.get(player.id) ?? []}
                 pendingMelds={player.id === viewer?.userId ? opening.pendingMelds : []}
                 highlightMeldIds={layOff.highlightMeldIds}
+                layOffGapTargets={draggingCardId ? layOffGapTargets : []}
+                activeDropGapId={activeDropGapId}
                 onMeldClick={canLayOff && selectedCardId ? layOff.selectMeld : undefined}
                 onPendingMeldClick={
                   isOpeningHandMode && player.id === viewer?.userId
@@ -807,8 +985,8 @@ export function GameTable({ session }: { session: GameSession }) {
       </div>
 
       {table.phase === "playing" ? (
-        <div className="wood-rail shrink-0 overflow-visible border-t-2 border-[var(--wood-dark)] px-2 pb-2 pt-1">
-          <div className="mb-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <div className="wood-rail shrink-0 overflow-visible border-t-2 border-[var(--wood-dark)] px-2 pb-1 pt-0.5">
+          <div className="mb-0.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-xs font-bold text-[var(--accent-soft)]">Your hand</p>
               <div className="flex gap-1 text-xs">
@@ -884,6 +1062,7 @@ export function GameTable({ session }: { session: GameSession }) {
             selectedIds={handSelectedIds}
             onToggle={toggleHandCard}
             disabled={!isMyTurn || table.turnPhase !== "discard" || busy}
+            dragEnabled={dragLayOffEnabled}
             sortMode={handSortMode}
             onSortModeChange={setHandSortMode}
             showSortControls={false}
@@ -892,6 +1071,10 @@ export function GameTable({ session }: { session: GameSession }) {
           {status ? <p className="mt-0.5 text-xs font-semibold text-[var(--danger)]">{status}</p> : null}
         </div>
       ) : null}
+      <DragOverlay dropAnimation={null}>
+        {draggingCard ? <HandCardDragOverlay card={draggingCard} size="lg" /> : null}
+      </DragOverlay>
+      </DndContext>
     </div>
   );
 }

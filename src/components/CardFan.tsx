@@ -14,7 +14,7 @@ import {
   sortHand,
   type HandSortMode,
 } from "../lib/cards";
-import { PlayingCard } from "./cards/PlayingCard";
+import { DraggableHandCard } from "./cards/DraggableHandCard";
 
 type CardFanProps = {
   cards: Card[];
@@ -22,6 +22,7 @@ type CardFanProps = {
   selectedId?: string | null;
   onToggle: (cardId: string) => void;
   disabled?: boolean;
+  dragEnabled?: boolean;
   sortMode: HandSortMode;
   onSortModeChange: (mode: HandSortMode) => void;
   showSortControls?: boolean;
@@ -34,6 +35,7 @@ export function CardFan({
   selectedId,
   onToggle,
   disabled = false,
+  dragEnabled = false,
   sortMode,
   onSortModeChange,
   showSortControls = true,
@@ -89,7 +91,7 @@ export function CardFan({
         </div>
       ) : null}
 
-      <div className="overflow-x-auto overflow-y-visible pb-2 pt-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="overflow-x-auto overflow-y-visible pb-0.5 pt-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div
           className="relative mx-auto flex items-end justify-center overflow-visible"
           style={{
@@ -106,12 +108,13 @@ export function CardFan({
             const lift = selected ? FAN_SELECTED_LIFT_PX : 0;
 
             return (
-              <PlayingCard
+              <DraggableHandCard
                 key={card.id}
                 card={card}
                 size={size}
                 selected={selected}
                 disabled={disabled}
+                dragEnabled={dragEnabled}
                 onClick={() => onToggle(card.id)}
                 className="relative transition-[margin,transform] duration-200 ease-out"
                 style={{

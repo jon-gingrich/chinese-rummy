@@ -9,6 +9,7 @@ import {
 } from "./lib/games";
 import { getCurrentUser } from "./lib/auth";
 import { persistGameState } from "./lib/persistGame";
+import { withNormalizedRunMelds } from "./lib/rules/melds";
 import {
   applyAction,
   applyCallRummy,
@@ -149,7 +150,7 @@ export const getLegalActions = query({
     if (!state.players.some((player) => player.id === user._id)) {
       return null;
     }
-    return legalActions(state, user._id);
+    return legalActions(withNormalizedRunMelds(state), user._id);
   },
 });
 

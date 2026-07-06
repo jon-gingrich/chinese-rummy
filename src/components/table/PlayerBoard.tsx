@@ -1,9 +1,10 @@
 "use client";
 
 import type { OpeningMeld, TableMeld } from "../../../convex/lib/rules/types";
+import type { InsertionGap } from "../../../convex/lib/rules/layoffs";
 import { FELT_GRID_AREA } from "../../lib/feltLayout";
 import { seatSlotForOffset, type SeatSlot } from "../../lib/cardDisplay";
-import { MeldSpread } from "../cards/MeldSpread";
+import { gapsForMeld, MeldSpread } from "../cards/MeldSpread";
 
 type BoardPlayer = {
   id: string;
@@ -33,6 +34,8 @@ type PlayerBoardProps = {
   pendingMelds?: OpeningMeld[];
   highlightMeldIds?: Set<string>;
   onMeldClick?: (meldId: string) => void;
+  layOffGapTargets?: Array<{ meldId: string; gap: InsertionGap }>;
+  activeDropGapId?: string | null;
   onPendingMeldClick?: (index: number) => void;
   isMe?: boolean;
   onSubstitute?: () => void;
@@ -46,6 +49,8 @@ export function PlayerBoard({
   pendingMelds = [],
   highlightMeldIds = new Set(),
   onMeldClick,
+  layOffGapTargets = [],
+  activeDropGapId = null,
   onPendingMeldClick,
   isMe = false,
   onSubstitute,
@@ -102,7 +107,8 @@ export function PlayerBoard({
           {allMelds.map((meld) => {
             const isPending = meld.id.startsWith("pending-");
             const pendingIndex = isPending ? Number(meld.id.slice("pending-".length)) : -1;
-            const highlighted = !isPending && highlightMeldIds.has(meld.id);
+            const highlighted = !isPending && highlightMeldIds.has(meld.id) && layOffGapTargets.length === 0;
+            const meldGaps = isPending ? [] : gapsForMeld(meld.id, layOffGapTargets);
             const canRemovePending = isPending && onPendingMeldClick !== undefined;
             return (
               <div
@@ -115,8 +121,11 @@ export function PlayerBoard({
               >
                 <MeldSpread
                   meld={meld}
+                  meldId={meld.id}
                   size="lg"
                   highlighted={highlighted}
+                  insertionGaps={meldGaps}
+                  activeDropGapId={activeDropGapId}
                   onClick={
                     canRemovePending
                       ? () => onPendingMeldClick(pendingIndex)

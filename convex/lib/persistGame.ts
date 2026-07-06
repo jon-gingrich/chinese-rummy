@@ -9,6 +9,7 @@ import {
 } from "./games";
 import { legalActions } from "./rules";
 import type { GameState } from "./rules";
+import { withNormalizedRunMelds } from "./rules/melds";
 
 export async function persistGameState(
   ctx: MutationCtx,
@@ -19,8 +20,9 @@ export async function persistGameState(
 ) {
   if (!error) {
     const now = Date.now();
+    const normalizedState = withNormalizedRunMelds(state);
     await ctx.db.patch("games", game._id, {
-      state,
+      state: normalizedState,
       updatedAt: now,
     });
     await touchGameParticipants(ctx, game._id, now);
@@ -32,15 +34,16 @@ export async function persistGameState(
         now,
       });
     } else {
-      await scheduleAutomatedTurnIfNeeded(ctx, game._id, state);
+      await scheduleAutomatedTurnIfNeeded(ctx, game._id, normalizedState);
     }
   }
 
-  const table = await buildTableView(ctx, { ...game, state }, state, playerId);
+  const normalizedState = withNormalizedRunMelds(state);
+  const table = await buildTableView(ctx, { ...game, state: normalizedState }, normalizedState, playerId);
   return {
     table,
-    hand: handForPlayer(state, playerId),
-    legalActions: legalActions(state, playerId),
+    hand: handForPlayer(normalizedState, playerId),
+    legalActions: legalActions(normalizedState, playerId),
     error,
   };
 }

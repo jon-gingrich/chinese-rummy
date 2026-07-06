@@ -1,6 +1,6 @@
 import { buildShoe, shuffleCards } from "./cards";
 import { allContractsFulfilled, advanceContractRound } from "./contracts";
-import { normalizeOpeningMeld, validateOpeningMelds } from "./melds";
+import { normalizeOpeningMeld, validateOpeningMelds, withNormalizedRunMelds } from "./melds";
 import { findLayOffTargets, applyLayOff, validateLayOff } from "./layoffs";
 import {
   discardableHandCards,
@@ -409,6 +409,8 @@ export function applyAction(
   if (!isActivePlayer(state, playerId)) {
     return { state, error: "Not your turn" };
   }
+
+  state = withNormalizedRunMelds(state);
 
   const playerIndex = state.players.findIndex((entry) => entry.id === playerId);
   if (playerIndex === -1) {

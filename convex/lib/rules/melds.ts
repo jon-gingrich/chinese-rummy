@@ -1,5 +1,5 @@
 import { matchesContract } from "./contracts";
-import type { Card, MeldKind, NaturalRank, Rank, Suit, WildDeclaration } from "./types";
+import type { Card, GameState, MeldKind, NaturalRank, Rank, Suit, TableMeld, WildDeclaration } from "./types";
 
 const NATURAL_RANKS: NaturalRank[] = [
   "A",
@@ -227,6 +227,30 @@ export function normalizeOpeningMeld(meld: OpeningMeldInput): OpeningMeldInput {
   return {
     ...meld,
     cards: orderRunCards(meld.cards, meld.wildDeclarations),
+  };
+}
+
+export function normalizeRunMeldCards(
+  cards: Card[],
+  wildDeclarations: WildDeclaration[],
+): Card[] {
+  return orderRunCards(cards, wildDeclarations);
+}
+
+export function normalizeTableMeld(meld: TableMeld): TableMeld {
+  if (meld.kind !== "run") {
+    return meld;
+  }
+  return {
+    ...meld,
+    cards: normalizeRunMeldCards(meld.cards, meld.wildDeclarations),
+  };
+}
+
+export function withNormalizedRunMelds(state: GameState): GameState {
+  return {
+    ...state,
+    melds: state.melds.map(normalizeTableMeld),
   };
 }
 

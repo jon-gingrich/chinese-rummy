@@ -23,6 +23,7 @@ import {
   startRound,
 } from "./lib/rules";
 import type { GameState } from "./lib/rules";
+import { withNormalizedRunMelds } from "./lib/rules/melds";
 import {
   actionResultValidator,
   cardValidator,
@@ -138,7 +139,7 @@ export const getLegalActions = query({
       if (!state.players.some((player) => player.id === user._id)) {
         return null;
       }
-      return legalActions(state, user._id);
+      return legalActions(withNormalizedRunMelds(state), user._id);
     } catch {
       return null;
     }

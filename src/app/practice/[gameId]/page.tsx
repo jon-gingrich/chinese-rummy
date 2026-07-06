@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -14,7 +14,6 @@ import { useGuestAuth } from "../../../hooks/useGuestAuth";
 export default function PracticePage() {
   const params = useParams<{ gameId: string }>();
   const gameId = params.gameId as Id<"games">;
-  const router = useRouter();
   const { viewer, isLoading } = useGuestAuth();
   const ensureCurrentUser = useMutation(api.users.ensureCurrentUser);
   const table = useQuery(api.practice.getGame, { gameId });
@@ -63,15 +62,12 @@ export default function PracticePage() {
 
   return (
     <ScreenSizeGate>
-      <div className="flex h-[100dvh] flex-col bg-[var(--felt)]">
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-black/20 px-3 py-2">
-          <button type="button" onClick={() => router.push("/home")} className="game-btn-secondary text-xs">
-            ← Home
-          </button>
-          <p className="text-sm font-bold text-[var(--cream)]">Practice vs automated players</p>
-          <span className="w-16" />
-        </div>
-        <GameTable session={{ mode: "practice", gameId }} />
+      <div className="flex h-[100dvh] flex-col bg-[var(--felt)] p-1 md:p-2">
+        <GameTable
+          session={{ mode: "practice", gameId }}
+          backHref="/home"
+          headerLabel="Practice"
+        />
       </div>
     </ScreenSizeGate>
   );

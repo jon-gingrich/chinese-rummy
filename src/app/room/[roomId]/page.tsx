@@ -146,19 +146,15 @@ export default function RoomLobbyPage() {
   if (isPlaying) {
     return (
       <ScreenSizeGate>
-        <div className="flex h-screen flex-col p-1 md:p-2">
-          <div className="mb-1 flex shrink-0 items-center justify-between px-1">
-            <Link href="/home" className="text-sm font-semibold text-[var(--muted)] hover:text-[var(--cream)]">
-              ← Home
-            </Link>
-            <p className="font-mono text-sm font-bold tracking-[0.2em] text-[var(--accent-soft)]">
-              {room.code}
-            </p>
-            {isGuest && viewer ? <LinkAccountPrompt userId={viewer.userId} compact /> : null}
-          </div>
-          <div className="flex min-h-0 flex-1 flex-col">
-            <GameTable session={{ mode: "multiplayer", roomId }} />
-          </div>
+        <div className="flex h-[100dvh] flex-col bg-[var(--felt)] p-1 md:p-2">
+          <GameTable
+            session={{ mode: "multiplayer", roomId }}
+            backHref="/home"
+            headerLabel={room.code}
+            headerExtra={
+              isGuest && viewer ? <LinkAccountPrompt userId={viewer.userId} compact /> : null
+            }
+          />
         </div>
       </ScreenSizeGate>
     );

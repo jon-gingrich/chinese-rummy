@@ -177,6 +177,19 @@ describe("opening wild rank suggestions", () => {
       orderRunCards([ten, eight, two], [{ cardId: two.id, asRank: "9" }]).map((card) => card.id),
     ).toEqual([eight.id, two.id, ten.id]);
   });
+
+  it("orders ace after king in ace-high runs", () => {
+    const jack = makeCard("hearts", "J");
+    const queen = makeCard("joker", "JOKER", 0);
+    const king = makeCard("hearts", "K");
+    const ace = makeCard("hearts", "A");
+
+    expect(
+      orderRunCards([ace, jack, queen, king], [{ cardId: queen.id, asRank: "Q" }]).map(
+        (card) => card.rank,
+      ),
+    ).toEqual(["J", "JOKER", "K", "A"]);
+  });
 });
 
 describe("opening contract coverage", () => {

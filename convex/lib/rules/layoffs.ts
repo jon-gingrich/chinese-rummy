@@ -3,6 +3,7 @@ import {
   effectiveRankForCard,
   isJoker,
   isWildInMeld,
+  normalizeRunMeldCards,
   validateRunStructure,
   validateSetStructure,
 } from "./melds";
@@ -89,15 +90,22 @@ function tryAddToSet(meld: TableMeld, card: Card): TableMeld | null {
   return tryInsertIntoSet(meld, card);
 }
 
+function orderRunMeld(meld: TableMeld): TableMeld {
+  return {
+    ...meld,
+    cards: normalizeRunMeldCards(meld.cards, meld.wildDeclarations),
+  };
+}
+
 function tryAddToRun(meld: TableMeld, card: Card): TableMeld | null {
   const atStart: TableMeld = { ...meld, cards: [card, ...meld.cards] };
   if (validateRunStructure(atStart.cards, atStart.wildDeclarations)) {
-    return atStart;
+    return orderRunMeld(atStart);
   }
 
   const atEnd: TableMeld = { ...meld, cards: [...meld.cards, card] };
   if (validateRunStructure(atEnd.cards, atEnd.wildDeclarations)) {
-    return atEnd;
+    return orderRunMeld(atEnd);
   }
 
   return null;
@@ -119,12 +127,12 @@ function tryAddWildToRun(meld: TableMeld, card: Card, asRank: NaturalRank): Tabl
 
   const atStart: TableMeld = { ...meld, cards: [card, ...meld.cards], wildDeclarations: declarations };
   if (validateRunStructure(atStart.cards, atStart.wildDeclarations)) {
-    return atStart;
+    return orderRunMeld(atStart);
   }
 
   const atEnd: TableMeld = { ...meld, cards: [...meld.cards, card], wildDeclarations: declarations };
   if (validateRunStructure(atEnd.cards, atEnd.wildDeclarations)) {
-    return atEnd;
+    return orderRunMeld(atEnd);
   }
 
   return null;
@@ -273,11 +281,18 @@ function applyReplacement(
   const targetDeclarations = target.wildDeclarations.filter(
     (entry) => entry.cardId !== replaceWildCardId,
   );
-  const updatedTarget: TableMeld = {
-    ...target,
-    cards: targetCards,
-    wildDeclarations: targetDeclarations,
-  };
+  const updatedTarget: TableMeld =
+    target.kind === "run"
+      ? orderRunMeld({
+          ...target,
+          cards: targetCards,
+          wildDeclarations: targetDeclarations,
+        })
+      : {
+          ...target,
+          cards: targetCards,
+          wildDeclarations: targetDeclarations,
+        };
 
   const targetValid =
     updatedTarget.kind === "set"
@@ -304,11 +319,18 @@ function applyReplacement(
     }
   }
 
-  const updatedDestination: TableMeld = {
-    ...destination,
-    cards: [...destination.cards, wildCard],
-    wildDeclarations: destinationDeclarations,
-  };
+  const updatedDestination: TableMeld =
+    destination.kind === "run"
+      ? orderRunMeld({
+          ...destination,
+          cards: [...destination.cards, wildCard],
+          wildDeclarations: destinationDeclarations,
+        })
+      : {
+          ...destination,
+          cards: [...destination.cards, wildCard],
+          wildDeclarations: destinationDeclarations,
+        };
 
   const destinationValid =
     updatedDestination.kind === "set"
@@ -415,4 +437,134 @@ export function validateLayOff(
   }
 
   return null;
+}
+
+export type InsertionGap = {
+  insertIndex: number;
+  mode: "add" | "replaceWild";
+  replaceWildCardId?: string;
+};
+
+export type LayOffGapTarget = {
+  meldId: string;
+  gap: InsertionGap;
+  layOffTarget: LayOffTarget;
+};
+
+function findAddGapsForSet(
+  meld: TableMeld,
+  card: Card,
+  wildRanks?: NaturalRank[],
+): InsertionGap[] {
+  const indices = new Set<number>();
+
+  if (!wildRanks || wildRanks.length === 0) {
+    for (let index = 0; index <= meld.cards.length; index += 1) {
+      const cards = [...meld.cards];
+      cards.splice(index, 0, card);
+      if (validateSetStructure(cards, meld.wildDeclarations)) {
+        indices.add(index);
+      }
+    }
+  } else {
+    for (const asRank of wildRanks) {
+      const wildDeclaration: WildDeclaration = { cardId: card.id, asRank };
+      for (let index = 0; index <= meld.cards.length; index += 1) {
+        const cards = [...meld.cards];
+        cards.splice(index, 0, card);
+        const wildDeclarations = [...meld.wildDeclarations, wildDeclaration];
+        if (validateSetStructure(cards, wildDeclarations)) {
+          indices.add(index);
+        }
+      }
+    }
+  }
+
+  return [...indices]
+    .sort((left, right) => left - right)
+    .map((insertIndex) => ({ insertIndex, mode: "add" as const }));
+}
+
+function findAddGapsForRun(
+  meld: TableMeld,
+  card: Card,
+  wildRanks?: NaturalRank[],
+): InsertionGap[] {
+  const indices = new Set<number>();
+
+  if (!wildRanks || wildRanks.length === 0) {
+    const atStart: TableMeld = { ...meld, cards: [card, ...meld.cards] };
+    if (validateRunStructure(atStart.cards, atStart.wildDeclarations)) {
+      indices.add(0);
+    }
+
+    const atEnd: TableMeld = { ...meld, cards: [...meld.cards, card] };
+    if (validateRunStructure(atEnd.cards, atEnd.wildDeclarations)) {
+      indices.add(meld.cards.length);
+    }
+  } else {
+    for (const asRank of wildRanks) {
+      const updated = tryAddWildToRun(meld, card, asRank);
+      if (updated) {
+        const insertIndex = updated.cards.findIndex((entry) => entry.id === card.id);
+        if (insertIndex >= 0) {
+          indices.add(insertIndex);
+        }
+      }
+    }
+  }
+
+  return [...indices]
+    .sort((left, right) => left - right)
+    .map((insertIndex) => ({ insertIndex, mode: "add" as const }));
+}
+
+export function findInsertionGaps(
+  meld: TableMeld,
+  card: Card,
+  target: LayOffTarget,
+): InsertionGap[] {
+  if (target.meldId !== meld.id) {
+    return [];
+  }
+
+  if (target.mode === "replaceWild") {
+    const wildIndex = meld.cards.findIndex((entry) => entry.id === target.replaceWildCardId);
+    if (wildIndex === -1) {
+      return [];
+    }
+    return [
+      {
+        insertIndex: wildIndex,
+        mode: "replaceWild",
+        replaceWildCardId: target.replaceWildCardId,
+      },
+    ];
+  }
+
+  return meld.kind === "set"
+    ? findAddGapsForSet(meld, card, target.wildRanks)
+    : findAddGapsForRun(meld, card, target.wildRanks);
+}
+
+export function findLayOffGapTargets(
+  melds: TableMeld[],
+  card: Card,
+  opened: boolean,
+  openedThisTurn: boolean,
+): LayOffGapTarget[] {
+  const targets = findLayOffTargets(melds, [card], opened, openedThisTurn);
+  const gapTargets: LayOffGapTarget[] = [];
+
+  for (const layOffTarget of targets) {
+    const meld = melds.find((entry) => entry.id === layOffTarget.meldId);
+    if (!meld) {
+      continue;
+    }
+    for (const gap of findInsertionGaps(meld, card, layOffTarget)) {
+      gapTargets.push({ meldId: meld.id, gap, layOffTarget });
+    }
+  }
+
+  return gapTargets;
 }

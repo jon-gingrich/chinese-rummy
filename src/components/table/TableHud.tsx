@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
+import { TableHudMenu } from "./TableHudMenu";
 
 type TablePlayer = {
   id: string;
@@ -22,6 +24,9 @@ type TableHudProps = {
   onHowToPlayClick: () => void;
   settingsHref?: string;
   onAbandon?: () => void;
+  backHref?: string;
+  headerLabel?: string;
+  headerExtra?: ReactNode;
 };
 
 export function TableHud({
@@ -34,20 +39,38 @@ export function TableHud({
   onHowToPlayClick,
   settingsHref,
   onAbandon,
+  backHref,
+  headerLabel,
+  headerExtra,
 }: TableHudProps) {
   const sortedByScore = [...players].sort((a, b) => a.cumulativeScore - b.cumulativeScore);
 
   return (
-    <header className="wood-rail z-20 flex shrink-0 items-center justify-between gap-3 border-b-2 border-[var(--wood-dark)] px-3 py-1.5 md:px-4">
-      <div className="min-w-0">
-        <p className="text-xs font-bold uppercase tracking-widest text-[var(--accent-soft)]">
-          Hand {roundNumber}
-        </p>
-        <p className="truncate text-sm font-semibold text-[var(--cream)] md:text-base">{contract}</p>
+    <header className="wood-rail z-20 flex shrink-0 items-center justify-between gap-2 border-b-2 border-[var(--wood-dark)] px-2 py-1 md:gap-3 md:px-3">
+      <div className="flex min-w-0 items-center gap-2">
+        {backHref ? (
+          <Link
+            href={backHref}
+            className="shrink-0 rounded px-2 py-1 text-xs font-semibold text-[var(--muted)] hover:bg-black/20 hover:text-[var(--cream)]"
+          >
+            ← Home
+          </Link>
+        ) : null}
+        <div className="min-w-0">
+          {headerLabel ? (
+            <p className="truncate text-[10px] font-bold uppercase tracking-widest text-[var(--muted)] md:text-xs">
+              {headerLabel}
+            </p>
+          ) : null}
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--accent-soft)] md:text-xs">
+            Hand {roundNumber}
+          </p>
+          <p className="truncate text-xs font-semibold text-[var(--cream)] md:text-sm">{contract}</p>
+        </div>
       </div>
 
       <div
-        className={`max-w-md flex-1 rounded-full px-4 py-1.5 text-center text-sm font-semibold ${
+        className={`max-w-md flex-1 rounded-full px-3 py-1 text-center text-xs font-semibold md:px-4 md:py-1.5 md:text-sm ${
           isMyTurn
             ? "turn-pulse bg-[var(--accent)] text-[#2c1810]"
             : "bg-black/25 text-[var(--muted)]"
@@ -56,35 +79,30 @@ export function TableHud({
         {turnMessage}
       </div>
 
-      <div className="flex items-center gap-3">
-        <div className="hidden items-center gap-2 md:flex">
+      <div className="flex shrink-0 items-center gap-2">
+        <div className="hidden items-center gap-1.5 lg:flex">
           {sortedByScore.map((player, index) => (
             <div
               key={player.id}
-              className="rounded-lg bg-black/20 px-2.5 py-1 text-xs"
+              className="rounded-lg bg-black/20 px-2 py-0.5 text-xs"
               title={player.displayName}
             >
               <span className="font-bold text-[var(--cream)]">{player.displayName.split(" ")[0]}</span>
-              <span className="ml-1.5 text-[var(--accent-soft)]">{player.cumulativeScore}</span>
-              {index === 0 ? <span className="ml-1">👑</span> : null}
+              <span className="ml-1 text-[var(--accent-soft)]">{player.cumulativeScore}</span>
+              {index === 0 ? <span className="ml-0.5">👑</span> : null}
             </div>
           ))}
         </div>
-        <button type="button" onClick={onHowToPlayClick} className="game-btn-secondary px-3 py-1.5 text-xs">
-          How to play
-        </button>
-        <button type="button" onClick={onRulesClick} className="game-btn-secondary px-3 py-1.5 text-xs">
-          Rules
-        </button>
+        {headerExtra}
+        <TableHudMenu
+          onRulesClick={onRulesClick}
+          onHowToPlayClick={onHowToPlayClick}
+          settingsHref={settingsHref}
+        />
         {onAbandon ? (
-          <button type="button" onClick={onAbandon} className="game-btn-secondary px-3 py-1.5 text-xs">
+          <button type="button" onClick={onAbandon} className="game-btn-secondary px-2.5 py-1.5 text-xs">
             Abandon
           </button>
-        ) : null}
-        {settingsHref ? (
-          <Link href={settingsHref} className="game-btn-secondary px-3 py-1.5 text-xs">
-            Settings
-          </Link>
         ) : null}
       </div>
     </header>

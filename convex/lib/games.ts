@@ -9,6 +9,7 @@ import {
 import { isAutomatedSeat, isHumanSeat, automatedDisplayNamesInUse } from "./rooms";
 import { effectiveContractRound, formatContract } from "./rules/contracts";
 import type { GameState } from "./rules";
+import { withNormalizedRunMelds } from "./rules/melds";
 import { replacePlayerIdInGameState } from "./substitution";
 import { scheduleAutomatedTurnIfNeeded } from "../automatedTurnScheduler";
 
@@ -263,7 +264,7 @@ export async function buildTableView(
     stockCount: state.stock.length,
     rummyWindow: state.rummyWindow,
     players,
-    melds: state.melds,
+    melds: withNormalizedRunMelds(state).melds,
     cumulativeScores: state.cumulativeScores,
     lastRoundSummary: state.lastRoundSummary,
     winnerPlayerIds: state.winnerPlayerIds,

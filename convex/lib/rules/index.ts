@@ -44,7 +44,13 @@ export type {
   WildDeclaration,
   WildRelocation,
 } from "./types";
-export { findLayOffTargets, applyLayOff } from "./layoffs";
+export {
+  findLayOffTargets,
+  applyLayOff,
+  findInsertionGaps,
+  findLayOffGapTargets,
+} from "./layoffs";
+export type { InsertionGap, LayOffGapTarget } from "./layoffs";
 export {
   discardableHandCards,
   isPlayableDiscard,

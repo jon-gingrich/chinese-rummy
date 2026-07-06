@@ -7,6 +7,7 @@ import {
   type GameState,
   type TableMeld,
 } from "../../../convex/lib/rules";
+import { applyLayOff } from "../../../convex/lib/rules/layoffs";
 import { makeCard } from "../../../convex/lib/rules/melds";
 
 function seatedPlayers(count: number) {
@@ -445,6 +446,35 @@ describe("wild relocation", () => {
     expect(result.error).toBeUndefined();
     const destination = result.state.melds.find((meld) => meld.id === "run-b");
     expect(destination?.cards.filter((card) => card.rank === "JOKER")).toHaveLength(2);
+  });
+});
+
+describe("run meld ordering", () => {
+  it("places ace after king when extending an ace-high run", () => {
+    const joker = makeCard("joker", "JOKER", 0);
+    const ace = makeCard("hearts", "A");
+    const melds = [
+      tableMeld(
+        "heart-run",
+        "player-1",
+        "run",
+        [makeCard("hearts", "J"), joker, makeCard("hearts", "K")],
+        [{ cardId: joker.id, asRank: "Q" }],
+      ),
+    ];
+
+    const result = applyLayOff(melds, {
+      targetMeldId: "heart-run",
+      card: ace,
+    });
+
+    expect("error" in result).toBe(false);
+    if ("error" in result) {
+      return;
+    }
+
+    const updated = result.melds.find((meld) => meld.id === "heart-run");
+    expect(updated?.cards.map((card) => card.rank)).toEqual(["J", "JOKER", "K", "A"]);
   });
 });
 

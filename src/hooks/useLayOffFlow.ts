@@ -107,43 +107,51 @@ export function useLayOffFlow({
     setSelectedTargetKey(targetKey(target));
   }
 
-  async function submitLayOff() {
-    if (!selectedCard || !selectedTarget) {
-      onStatus("Select a card and lay-off target");
-      return;
-    }
+  function selectTarget(target: LayOffTarget) {
+    setSelectedTargetKey(targetKey(target));
+  }
 
-    if (selectedTarget.mode === "replaceWild" && !destinationMeldId) {
+  function targetNeedsFollowUp(target: LayOffTarget, card: Card): boolean {
+    if (target.mode === "replaceWild") {
+      return true;
+    }
+    if (!target.wildRanks || target.wildRanks.length === 0) {
+      return false;
+    }
+    return (
+      isJoker(card) ||
+      (card.rank === "2" && target.wildRanks.some((rank) => rank !== "2"))
+    );
+  }
+
+  async function submitLayOffFor(card: Card, target: LayOffTarget) {
+    if (target.mode === "replaceWild" && !destinationMeldId) {
       onStatus("Choose where to relocate the wild");
       return;
     }
 
     const laysAsWild =
-      selectedTarget.mode === "add" &&
-      selectedTarget.wildRanks &&
-      (isJoker(selectedCard) || (selectedCard.rank === "2" && wildRank !== "2"));
+      target.mode === "add" &&
+      target.wildRanks &&
+      (isJoker(card) || (card.rank === "2" && wildRank !== "2"));
 
     setBusy(true);
     onStatus(null);
     try {
       const result = await performLayOff({
-        targetMeldId: selectedTarget.meldId,
-        card: selectedCard,
+        targetMeldId: target.meldId,
+        card,
         replaceWildCardId:
-          selectedTarget.mode === "replaceWild"
-            ? selectedTarget.replaceWildCardId
-            : undefined,
+          target.mode === "replaceWild" ? target.replaceWildCardId : undefined,
         relocation:
-          selectedTarget.mode === "replaceWild" && destinationMeldId
+          target.mode === "replaceWild" && destinationMeldId
             ? {
                 destinationMeldId,
-                wildDeclaration: { cardId: selectedTarget.replaceWildCardId, asRank: wildRank },
+                wildDeclaration: { cardId: target.replaceWildCardId, asRank: wildRank },
               }
             : undefined,
         wildDeclaration:
-          laysAsWild
-            ? { cardId: selectedCard.id, asRank: wildRank }
-            : undefined,
+          laysAsWild ? { cardId: card.id, asRank: wildRank } : undefined,
       });
 
       if (result?.error) {
@@ -160,6 +168,20 @@ export function useLayOffFlow({
     }
   }
 
+  async function submitLayOff() {
+    if (!selectedCard || !selectedTarget) {
+      onStatus("Select a card and lay-off target");
+      return;
+    }
+
+    await submitLayOffFor(selectedCard, selectedTarget);
+  }
+
+  function clearTarget() {
+    setSelectedTargetKey(null);
+    setDestinationMeldId(null);
+  }
+
   return {
     selectedCard,
     cardTargets,
@@ -173,7 +195,11 @@ export function useLayOffFlow({
     naturalRanks: NATURAL_RANKS,
     busy,
     selectMeld,
+    selectTarget,
+    targetNeedsFollowUp,
     submitLayOff,
+    submitLayOffFor,
+    clearTarget,
     needsRelocationUi: selectedTarget?.mode === "replaceWild",
     needsWildRankUi:
       selectedTarget?.mode === "add" &&

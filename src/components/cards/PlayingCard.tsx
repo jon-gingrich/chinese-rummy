@@ -19,6 +19,8 @@ type PlayingCardProps = {
   selected?: boolean;
   highlighted?: boolean;
   disabled?: boolean;
+  /** Visual fade when not interactive. Defaults to `disabled` when omitted. */
+  dimmed?: boolean;
   /** Table melds and previews — solid face, not a faded disabled button. */
   displayOnly?: boolean;
   faceDown?: boolean;
@@ -208,6 +210,7 @@ export function PlayingCard({
   selected = false,
   highlighted = false,
   disabled = false,
+  dimmed,
   displayOnly = false,
   faceDown = false,
   wildDeclarations = [],
@@ -221,6 +224,7 @@ export function PlayingCard({
   const asRank = wildAsRank(card, wildDeclarations);
   const playedWild = isPlayedAsWild(card, wildDeclarations);
   const interactive = Boolean(onClick) && !disabled && !displayOnly;
+  const showDimmed = dimmed ?? disabled;
 
   const showWildShell = playedWild || card.rank === "JOKER";
   const shellClasses = `relative shrink-0 overflow-hidden rounded-lg border bg-[#fffef8] shadow-md transition ${className} ${
@@ -236,7 +240,7 @@ export function PlayingCard({
             ? "border-amber-400"
             : "border-[#d4cfc4]"
   } ${interactive ? "cursor-pointer hover:-translate-y-1 hover:shadow-lg" : ""} ${
-    disabled && !displayOnly ? "opacity-60" : ""
+    showDimmed && !displayOnly ? "opacity-60" : ""
   }`;
 
   const shellStyle = { width, height, ...style };
