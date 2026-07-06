@@ -175,6 +175,7 @@ export const tableViewValidator = v.object({
   lastRoundSummary: v.optional(roundSummaryValidator),
   winnerPlayerIds: v.optional(v.array(v.string())),
   canContinueRound: v.boolean(),
+  viewerCanArchive: v.boolean(),
 });
 
 export const actionResultValidator = v.object({

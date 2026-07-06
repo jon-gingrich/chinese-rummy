@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { api } from "../../../convex/_generated/api";
+import type { Id } from "../../../convex/_generated/dataModel";
 import { AppShell } from "@/components/AppShell";
 import { LinkAccountPrompt } from "../../components/LinkAccountPrompt";
 import { AuthErrorBanner } from "../../components/AuthErrorBanner";
@@ -60,6 +61,28 @@ function PracticeActions() {
 function MyGamesList() {
   const router = useRouter();
   const myGames = useQuery(api.games.getMyGames);
+  const archiveGame = useMutation(api.games.archiveGame);
+  const [archivingId, setArchivingId] = useState<Id<"games"> | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleArchive(gameId: Id<"games">, gameMode: "practice" | "multiplayer") {
+    const message =
+      gameMode === "practice"
+        ? "Archive this practice game? It will leave your game list."
+        : "Archive this game for everyone? It will leave all players' game lists.";
+    if (!window.confirm(message)) {
+      return;
+    }
+    setArchivingId(gameId);
+    setError(null);
+    try {
+      await archiveGame({ gameId });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not archive game");
+    } finally {
+      setArchivingId(null);
+    }
+  }
 
   if (myGames === undefined) {
     return <p className="mt-4 text-sm text-[var(--muted)]">Loading your games…</p>;
@@ -70,40 +93,55 @@ function MyGamesList() {
   }
 
   return (
-    <ul className="mt-4 space-y-3">
-      {myGames.map((game) => (
-        <li
-          key={game.gameId}
-          className="flex items-center justify-between gap-4 rounded-xl bg-black/20 px-4 py-3"
-        >
-          <div className="min-w-0">
-            <p className="font-bold tracking-wide text-[var(--cream)]">
-              {game.gameMode === "practice" ? "Practice" : game.roomCode}
-            </p>
-            <p className="text-sm text-[var(--muted)]">
-              Round {game.roundNumber} · {game.contract}
-            </p>
-            <p className="text-xs text-[var(--muted)]">
-              {game.playerCount} players
-              {game.phase === "roundEnd" ? " · between rounds" : null}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() =>
-              router.push(
-                game.gameMode === "practice"
-                  ? `/practice/${game.gameId}`
-                  : `/room/${game.roomId}`,
-              )
-            }
-            className="game-btn-primary shrink-0 px-3 py-2 text-xs"
+    <>
+      <ul className="mt-4 space-y-3">
+        {myGames.map((game) => (
+          <li
+            key={game.gameId}
+            className="flex items-center justify-between gap-4 rounded-xl bg-black/20 px-4 py-3"
           >
-            Resume
-          </button>
-        </li>
-      ))}
-    </ul>
+            <div className="min-w-0">
+              <p className="font-bold tracking-wide text-[var(--cream)]">
+                {game.gameMode === "practice" ? "Practice" : game.roomCode}
+              </p>
+              <p className="text-sm text-[var(--muted)]">
+                Round {game.roundNumber} · {game.contract}
+              </p>
+              <p className="text-xs text-[var(--muted)]">
+                {game.playerCount} players
+                {game.phase === "roundEnd" ? " · between rounds" : null}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {game.canArchive ? (
+                <button
+                  type="button"
+                  onClick={() => void handleArchive(game.gameId, game.gameMode)}
+                  disabled={archivingId === game.gameId}
+                  className="game-btn-secondary px-3 py-2 text-xs"
+                >
+                  {archivingId === game.gameId ? "Archiving…" : "Archive"}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() =>
+                  router.push(
+                    game.gameMode === "practice"
+                      ? `/practice/${game.gameId}`
+                      : `/room/${game.roomId}`,
+                  )
+                }
+                className="game-btn-primary px-3 py-2 text-xs"
+              >
+                Resume
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {error ? <p className="mt-3 text-sm text-[var(--danger)]">{error}</p> : null}
+    </>
   );
 }
 
@@ -248,7 +286,7 @@ export default function HomePage() {
         <section className="game-panel p-6">
           <h2 className="text-lg font-bold text-[var(--accent-soft)]">Practice</h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            Play solo against automated opponents. Practice games save to My games until you abandon them.
+            Play solo against automated opponents. Practice games save to My games until you archive them.
           </p>
           <PracticeActions />
         </section>

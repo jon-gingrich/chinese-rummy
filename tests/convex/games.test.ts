@@ -266,6 +266,44 @@ describe("games.getMyGames", () => {
     expect(table?.roundNumber).toBe(listed[0]?.roundNumber);
     expect(hand).toHaveLength(13);
   });
+
+  it("marks host games as archivable and guest games as not", async () => {
+    const { asHost, asGuest } = await startTwoPlayerGame();
+
+    const hostGames = await asHost.query(api.games.getMyGames, {});
+    const guestGames = await asGuest.query(api.games.getMyGames, {});
+
+    expect(hostGames[0]?.canArchive).toBe(true);
+    expect(guestGames[0]?.canArchive).toBe(false);
+  });
+});
+
+describe("games.archiveGame", () => {
+  it("lets the host archive a multiplayer game for all players", async () => {
+    const { asHost, asGuest, roomId } = await startTwoPlayerGame();
+    const listed = await asHost.query(api.games.getMyGames, {});
+    const gameId = listed[0]!.gameId;
+
+    await asHost.mutation(api.games.archiveGame, { gameId });
+
+    const hostGames = await asHost.query(api.games.getMyGames, {});
+    const guestGames = await asGuest.query(api.games.getMyGames, {});
+    const room = await asHost.query(api.rooms.getRoom, { roomId });
+
+    expect(hostGames).toHaveLength(0);
+    expect(guestGames).toHaveLength(0);
+    expect(room?.status).toBe("finished");
+  });
+
+  it("rejects archive from a non-host", async () => {
+    const { asHost, asGuest } = await startTwoPlayerGame();
+    const listed = await asHost.query(api.games.getMyGames, {});
+    const gameId = listed[0]!.gameId;
+
+    await expect(
+      asGuest.mutation(api.games.archiveGame, { gameId }),
+    ).rejects.toThrow("Only the host can archive this game");
+  });
 });
 
 describe("games.layOff", () => {

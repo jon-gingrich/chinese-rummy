@@ -96,6 +96,54 @@ export async function touchGameParticipants(
   }
 }
 
+export async function archiveGame(
+  ctx: MutationCtx,
+  args: { gameId: Id<"games">; userId: Id<"users">; now: number },
+) {
+  const game = await ctx.db.get("games", args.gameId);
+  if (!game) {
+    throw new Error("Game not found");
+  }
+
+  const mode = gameModeFor(game);
+
+  if (mode === "practice") {
+    const memberships = await ctx.db
+      .query("gameParticipants")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+
+    const membership = memberships.find((entry) => entry.gameId === args.gameId);
+    if (!membership || membership.status !== "playing") {
+      throw new Error("You are not in this game");
+    }
+
+    await ctx.db.patch("gameParticipants", membership._id, {
+      status: "finished",
+      updatedAt: args.now,
+    });
+    return;
+  }
+
+  if (!game.roomId) {
+    throw new Error("Game has no room");
+  }
+
+  const room = await ctx.db.get("rooms", game.roomId);
+  if (!room) {
+    throw new Error("Room not found");
+  }
+  if (room.hostId !== args.userId) {
+    throw new Error("Only the host can archive this game");
+  }
+
+  await markGameFinished(ctx, {
+    gameId: args.gameId,
+    roomId: game.roomId,
+    now: args.now,
+  });
+}
+
 export async function abandonPracticeGame(
   ctx: MutationCtx,
   args: { gameId: Id<"games">; userId: Id<"users">; now: number },
@@ -108,20 +156,7 @@ export async function abandonPracticeGame(
     throw new Error("Only practice games can be abandoned");
   }
 
-  const participant = await ctx.db
-    .query("gameParticipants")
-    .withIndex("by_user", (q) => q.eq("userId", args.userId))
-    .collect();
-
-  const membership = participant.find((entry) => entry.gameId === args.gameId);
-  if (!membership) {
-    throw new Error("You are not in this game");
-  }
-
-  await ctx.db.patch("gameParticipants", membership._id, {
-    status: "finished",
-    updatedAt: args.now,
-  });
+  await archiveGame(ctx, args);
 }
 
 export function seatedPlayersFromRoom(
@@ -269,6 +304,8 @@ export async function buildTableView(
     lastRoundSummary: state.lastRoundSummary,
     winnerPlayerIds: state.winnerPlayerIds,
     canContinueRound: state.phase === "roundEnd",
+    viewerCanArchive:
+      mode === "practice" || options?.viewerIsHost === true,
   };
 }
 

@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import {
+  archiveGame as archiveGameRecord,
   assertPlayerInGame,
   buildTableView,
   gameModeFor,
@@ -39,6 +40,7 @@ const myGameSummaryValidator = v.object({
   phase: v.union(v.literal("playing"), v.literal("roundEnd"), v.literal("gameEnd")),
   playerCount: v.number(),
   updatedAt: v.number(),
+  canArchive: v.boolean(),
 });
 
 export const getMyGames = query({
@@ -71,6 +73,11 @@ export const getMyGames = query({
             ? effectiveContractRound(viewer, state.roundNumber)
             : state.roundNumber;
           const mode = membership.gameMode ?? gameModeFor(game);
+          let canArchive = mode === "practice";
+          if (!canArchive && membership.roomId) {
+            const room = await ctx.db.get("rooms", membership.roomId);
+            canArchive = room?.hostId === user._id;
+          }
           return {
             gameMode: mode,
             roomId: membership.roomId,
@@ -81,6 +88,7 @@ export const getMyGames = query({
             phase: state.phase,
             playerCount: state.players.length,
             updatedAt: game.updatedAt,
+            canArchive,
           };
         }),
     );
@@ -293,5 +301,19 @@ export const continueRound = mutation({
     }
 
     return await persistGameState(ctx, game, nextState, user._id);
+  },
+});
+
+export const archiveGame = mutation({
+  args: { gameId: v.id("games") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    await archiveGameRecord(ctx, {
+      gameId: args.gameId,
+      userId: user._id,
+      now: Date.now(),
+    });
+    return null;
   },
 });

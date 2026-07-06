@@ -658,19 +658,23 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
         onRulesClick={() => setShowRules(true)}
         onHowToPlayClick={() => setShowHowToPlay(true)}
         settingsHref={`/home/settings?returnTo=${encodeURIComponent(game.settingsReturnTo)}`}
-        onAbandon={
-          session.mode === "practice"
+        onArchive={
+          table.viewerCanArchive
             ? () => {
                 void (async () => {
-                  if (!window.confirm("Abandon this practice game? It will leave your game list.")) {
+                  const message =
+                    session.mode === "practice"
+                      ? "Archive this practice game? It will leave your game list."
+                      : "Archive this game for everyone? It will leave all players' game lists.";
+                  if (!window.confirm(message)) {
                     return;
                   }
                   setBusy(true);
                   try {
-                    await game.abandonPractice();
+                    await game.archiveGame();
                     router.push("/home");
                   } catch (error) {
-                    setStatus(error instanceof Error ? error.message : "Could not abandon game");
+                    setStatus(error instanceof Error ? error.message : "Could not archive game");
                   } finally {
                     setBusy(false);
                   }

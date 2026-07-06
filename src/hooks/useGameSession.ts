@@ -51,6 +51,7 @@ export function useGameSession(session: GameSession) {
   const practiceContinueRound = useMutation(api.practice.continueRound);
   const roomContinueRound = useMutation(api.games.continueRound);
   const abandonPractice = useMutation(api.practice.abandonPracticeGame);
+  const archiveGame = useMutation(api.games.archiveGame);
   const substituteAutomatedPlayer = useMutation(api.rooms.substituteAutomatedPlayer);
 
   const table = session.mode === "practice" ? practiceTable : roomTable;
@@ -108,6 +109,14 @@ export function useGameSession(session: GameSession) {
         throw new Error("Only practice games can be abandoned");
       }
       await abandonPractice({ gameId: session.gameId });
+    },
+    async archiveGame() {
+      const gameId =
+        session.mode === "practice" ? session.gameId : table?._id;
+      if (!gameId) {
+        throw new Error("Game not loaded");
+      }
+      await archiveGame({ gameId });
     },
     async substituteAutomated(seatIndex: number) {
       if (session.mode !== "multiplayer") {

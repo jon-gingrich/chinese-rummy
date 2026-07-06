@@ -23,7 +23,7 @@ type TableHudProps = {
   onRulesClick: () => void;
   onHowToPlayClick: () => void;
   settingsHref?: string;
-  onAbandon?: () => void;
+  onArchive?: () => void;
   backHref?: string;
   headerLabel?: string;
   headerExtra?: ReactNode;
@@ -38,7 +38,7 @@ export function TableHud({
   onRulesClick,
   onHowToPlayClick,
   settingsHref,
-  onAbandon,
+  onArchive,
   backHref,
   headerLabel,
   headerExtra,
@@ -99,9 +99,9 @@ export function TableHud({
           onHowToPlayClick={onHowToPlayClick}
           settingsHref={settingsHref}
         />
-        {onAbandon ? (
-          <button type="button" onClick={onAbandon} className="game-btn-secondary px-2.5 py-1.5 text-xs">
-            Abandon
+        {onArchive ? (
+          <button type="button" onClick={onArchive} className="game-btn-secondary px-2.5 py-1.5 text-xs">
+            Archive
           </button>
         ) : null}
       </div>
