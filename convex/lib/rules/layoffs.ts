@@ -242,6 +242,37 @@ export function findRelocationDestinations(
   return destinations;
 }
 
+export function findValidRelocationRanks(
+  target: TableMeld,
+  card: Card,
+  replaceWildCardId: string,
+  destinationMeldId: string,
+  allMelds: TableMeld[],
+): NaturalRank[] {
+  const wildIndex = target.cards.findIndex((entry) => entry.id === replaceWildCardId);
+  if (wildIndex === -1) {
+    return [];
+  }
+
+  const wildCard = target.cards[wildIndex]!;
+  if (!isWildInMeld(wildCard, target.wildDeclarations)) {
+    return [];
+  }
+
+  const updatedTarget = simulateReplacement(target, card, replaceWildCardId);
+  if (!updatedTarget) {
+    return [];
+  }
+
+  const destination = meldById(allMelds, destinationMeldId);
+  if (!destination || destination.ownerId !== target.ownerId) {
+    return [];
+  }
+
+  const baseMeld = destination.id === target.id ? updatedTarget : destination;
+  return findValidWildRanksForMeld(baseMeld, wildCard);
+}
+
 function replaceableWilds(meld: TableMeld, card: Card): string[] {
   if (meld.kind === "set") {
     return [];

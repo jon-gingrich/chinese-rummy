@@ -14,7 +14,7 @@ type LayOffDropDialogProps = {
   validWildRanks: NaturalRank[];
   destinationMeldId: string | null;
   relocationDestinations: string[];
-  naturalRanks: NaturalRank[];
+  validRelocationRanks: NaturalRank[];
   busy: boolean;
   onWildRankChange: (rank: NaturalRank) => void;
   onDestinationChange: (meldId: string) => void;
@@ -31,7 +31,7 @@ export function LayOffDropDialog({
   validWildRanks,
   destinationMeldId,
   relocationDestinations,
-  naturalRanks,
+  validRelocationRanks,
   busy,
   onWildRankChange,
   onDestinationChange,
@@ -112,12 +112,17 @@ export function LayOffDropDialog({
                     value={wildRank}
                     onChange={(event) => onWildRankChange(event.target.value as NaturalRank)}
                     className="game-input mt-1 py-1.5 text-sm"
+                    disabled={validRelocationRanks.length === 0}
                   >
-                    {naturalRanks.map((rank) => (
-                      <option key={rank} value={rank}>
-                        {rank}
-                      </option>
-                    ))}
+                    {validRelocationRanks.length === 0 ? (
+                      <option value="">Choose destination first…</option>
+                    ) : (
+                      validRelocationRanks.map((rank) => (
+                        <option key={rank} value={rank}>
+                          {rank}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </label>
               </>
@@ -127,8 +132,8 @@ export function LayOffDropDialog({
           ""
         )
       }
-      confirmLabel="Lay off"
-      busy={busy}
+        confirmLabel="Lay off"
+        busy={busy || (needsRelocation && validRelocationRanks.length === 0)}
       onCancel={onCancel}
       onConfirm={onConfirm}
     />

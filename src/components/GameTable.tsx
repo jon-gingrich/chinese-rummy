@@ -17,7 +17,7 @@ import { useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api } from "../../convex/_generated/api";
-import { findLayOffGapTargets } from "../../convex/lib/rules/layoffs";
+import { findLayOffGapTargets, findValidRelocationRanks } from "../../convex/lib/rules/layoffs";
 import { isJoker } from "../../convex/lib/rules/melds";
 import type { Card, LayOffTarget, TableMeld } from "../../convex/lib/rules/types";
 import { gapsMatch, parseHandCardDragId, parseMeldGapDropId } from "../lib/cardDrag";
@@ -222,6 +222,36 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
     // canLayOff is only true when opened and not on the opening turn.
     return findLayOffGapTargets(table?.melds ?? [], draggingCard, true, false);
   }, [canLayOff, draggingCard, table?.melds]);
+
+  const layOffDialogRelocationRanks = useMemo(() => {
+    if (
+      !layOffDropDialog ||
+      layOffDropDialog.target.mode !== "replaceWild" ||
+      !layOff.destinationMeldId
+    ) {
+      return [];
+    }
+    const targetMeld = table?.melds.find((meld) => meld.id === layOffDropDialog.target.meldId);
+    if (!targetMeld) {
+      return [];
+    }
+    return findValidRelocationRanks(
+      targetMeld,
+      layOffDropDialog.card,
+      layOffDropDialog.target.replaceWildCardId,
+      layOff.destinationMeldId,
+      table?.melds ?? [],
+    );
+  }, [layOffDropDialog, layOff.destinationMeldId, table?.melds]);
+
+  useEffect(() => {
+    if (
+      layOffDialogRelocationRanks.length > 0 &&
+      !layOffDialogRelocationRanks.includes(layOff.wildRank)
+    ) {
+      layOff.setWildRank(layOffDialogRelocationRanks[0]!);
+    }
+  }, [layOffDialogRelocationRanks, layOff.wildRank, layOff.setWildRank]);
 
   const layOffCollisionDetection: CollisionDetection = (args) => {
     const pointerHits = pointerWithin(args);
@@ -535,8 +565,8 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
 
   async function handleLayOffDrop(card: Card, target: LayOffTarget) {
     if (layOff.targetNeedsFollowUp(target, card)) {
-      layOff.selectTarget(target);
       setSelectedCardId(card.id);
+      layOff.beginLayOffTarget(target);
       setLayOffDropDialog({ card, target });
       return;
     }
@@ -580,9 +610,11 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
       return;
     }
 
-    await layOff.submitLayOffFor(card, target);
-    setLayOffDropDialog(null);
-    setSelectedCardId(null);
+    const success = await layOff.submitLayOffFor(card, target);
+    if (success) {
+      setLayOffDropDialog(null);
+      setSelectedCardId(null);
+    }
   }
 
   if (
@@ -687,7 +719,7 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
             ? layOffDropDialog.target.relocationDestinations
             : []
         }
-        naturalRanks={layOff.naturalRanks}
+        validRelocationRanks={layOffDialogRelocationRanks}
         busy={layOff.busy}
         onWildRankChange={layOff.setWildRank}
         onDestinationChange={layOff.setDestinationMeldId}

@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { findLayOffTargets } from "../../convex/lib/rules/layoffs";
+import {
+  findLayOffTargets,
+  findValidRelocationRanks,
+} from "../../convex/lib/rules/layoffs";
 import { isJoker } from "../../convex/lib/rules/melds";
 import type { Card, LayOffTarget, NaturalRank, TableMeld } from "../../convex/lib/rules/types";
 
@@ -58,8 +61,10 @@ export function useLayOffFlow({
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    setSelectedTargetKey(null);
-    setDestinationMeldId(null);
+    if (selectedCardId === null) {
+      setSelectedTargetKey(null);
+      setDestinationMeldId(null);
+    }
   }, [selectedCardId]);
 
   const selectedCard = useMemo(
@@ -86,11 +91,34 @@ export function useLayOffFlow({
     return selectedTarget.wildRanks;
   }, [selectedTarget]);
 
+  const validRelocationRanks = useMemo(() => {
+    if (selectedTarget?.mode !== "replaceWild" || !destinationMeldId || !selectedCard) {
+      return [];
+    }
+    const targetMeld = melds.find((meld) => meld.id === selectedTarget.meldId);
+    if (!targetMeld) {
+      return [];
+    }
+    return findValidRelocationRanks(
+      targetMeld,
+      selectedCard,
+      selectedTarget.replaceWildCardId,
+      destinationMeldId,
+      melds,
+    );
+  }, [selectedTarget, destinationMeldId, selectedCard, melds]);
+
   useEffect(() => {
     if (validWildRanks.length > 0 && !validWildRanks.includes(wildRank)) {
       setWildRank(validWildRanks[0]!);
     }
   }, [validWildRanks, wildRank]);
+
+  useEffect(() => {
+    if (validRelocationRanks.length > 0 && !validRelocationRanks.includes(wildRank)) {
+      setWildRank(validRelocationRanks[0]!);
+    }
+  }, [validRelocationRanks, wildRank]);
 
   const highlightMeldIds = useMemo(() => {
     if (!selectedCard) {
@@ -104,11 +132,20 @@ export function useLayOffFlow({
     if (!target) {
       return;
     }
-    setSelectedTargetKey(targetKey(target));
+    beginLayOffTarget(target);
   }
 
   function selectTarget(target: LayOffTarget) {
+    beginLayOffTarget(target);
+  }
+
+  function beginLayOffTarget(target: LayOffTarget) {
     setSelectedTargetKey(targetKey(target));
+    if (target.mode === "replaceWild" && target.relocationDestinations.length === 1) {
+      setDestinationMeldId(target.relocationDestinations[0]!);
+    } else if (target.mode !== "replaceWild") {
+      setDestinationMeldId(null);
+    }
   }
 
   function targetNeedsFollowUp(target: LayOffTarget, card: Card): boolean {
@@ -124,10 +161,31 @@ export function useLayOffFlow({
     );
   }
 
-  async function submitLayOffFor(card: Card, target: LayOffTarget) {
+  async function submitLayOffFor(card: Card, target: LayOffTarget): Promise<boolean> {
     if (target.mode === "replaceWild" && !destinationMeldId) {
       onStatus("Choose where to relocate the wild");
-      return;
+      return false;
+    }
+
+    if (
+      target.mode === "replaceWild" &&
+      destinationMeldId
+    ) {
+      const targetMeld = melds.find((meld) => meld.id === target.meldId);
+      const relocationRanks =
+        targetMeld === undefined
+          ? []
+          : findValidRelocationRanks(
+              targetMeld,
+              card,
+              target.replaceWildCardId,
+              destinationMeldId,
+              melds,
+            );
+      if (relocationRanks.length > 0 && !relocationRanks.includes(wildRank)) {
+        onStatus("Choose a valid rank for the relocated wild");
+        return false;
+      }
     }
 
     const laysAsWild =
@@ -156,13 +214,16 @@ export function useLayOffFlow({
 
       if (result?.error) {
         onStatus(result.error);
-      } else {
-        setSelectedTargetKey(null);
-        setDestinationMeldId(null);
-        onComplete?.();
+        return false;
       }
+
+      setSelectedTargetKey(null);
+      setDestinationMeldId(null);
+      onComplete?.();
+      return true;
     } catch (error) {
       onStatus(error instanceof Error ? error.message : "Lay-off failed");
+      return false;
     } finally {
       setBusy(false);
     }
@@ -193,9 +254,11 @@ export function useLayOffFlow({
     wildRank,
     setWildRank,
     naturalRanks: NATURAL_RANKS,
+    validRelocationRanks,
     busy,
     selectMeld,
     selectTarget,
+    beginLayOffTarget,
     targetNeedsFollowUp,
     submitLayOff,
     submitLayOffFor,

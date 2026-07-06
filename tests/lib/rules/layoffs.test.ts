@@ -7,7 +7,7 @@ import {
   type GameState,
   type TableMeld,
 } from "../../../convex/lib/rules";
-import { applyLayOff } from "../../../convex/lib/rules/layoffs";
+import { applyLayOff, findValidRelocationRanks } from "../../../convex/lib/rules/layoffs";
 import { makeCard } from "../../../convex/lib/rules/melds";
 
 function seatedPlayers(count: number) {
@@ -522,6 +522,98 @@ describe("wild relocation", () => {
       cardId: joker.id,
       asRank: "10",
     });
+  });
+
+  it("rejects same-meld relocation when the wild rank is invalid", () => {
+    const ownerId = "player-1";
+    const activeId = "player-0";
+    const joker = makeCard("joker", "JOKER", 0);
+    const state: GameState = {
+      ...startRound(createGame({ players: seatedPlayers(2) }), { seed: 1 }),
+      turnPhase: "discard",
+      activeSeatIndex: 0,
+      players: [
+        {
+          id: activeId,
+          seatIndex: 0,
+          playerPhase: "opened",
+          openedThisTurn: false,
+          hand: [makeCard("diamonds", "4", 1), makeCard("clubs", "9")],
+        },
+        {
+          id: ownerId,
+          seatIndex: 1,
+          playerPhase: "opened",
+          openedThisTurn: false,
+          hand: [],
+        },
+      ],
+      melds: [
+        tableMeld(
+          "diamond-run",
+          ownerId,
+          "run",
+          [
+            makeCard("diamonds", "3"),
+            joker,
+            makeCard("diamonds", "5"),
+            makeCard("diamonds", "6"),
+            makeCard("diamonds", "7"),
+            makeCard("diamonds", "8"),
+            makeCard("diamonds", "9"),
+          ],
+          [{ cardId: joker.id, asRank: "4" }],
+        ),
+      ],
+    };
+
+    const result = applyAction(
+      state,
+      {
+        kind: "layOff",
+        targetMeldId: "diamond-run",
+        card: makeCard("diamonds", "4", 1),
+        replaceWildCardId: joker.id,
+        relocation: {
+          destinationMeldId: "diamond-run",
+          wildDeclaration: { cardId: joker.id, asRank: "7" },
+        },
+      },
+      activeId,
+    );
+
+    expect(result.error).toBe("Relocation leaves destination meld invalid");
+  });
+
+  it("only offers valid ranks when extending the same run", () => {
+    const joker = makeCard("joker", "JOKER", 0);
+    const fourDiamonds = makeCard("diamonds", "4", 1);
+    const meld = tableMeld(
+      "diamond-run",
+      "player-1",
+      "run",
+      [
+        makeCard("diamonds", "3"),
+        joker,
+        makeCard("diamonds", "5"),
+        makeCard("diamonds", "6"),
+        makeCard("diamonds", "7"),
+        makeCard("diamonds", "8"),
+        makeCard("diamonds", "9"),
+      ],
+      [{ cardId: joker.id, asRank: "4" }],
+    );
+
+    const ranks = findValidRelocationRanks(
+      meld,
+      fourDiamonds,
+      joker.id,
+      "diamond-run",
+      [meld],
+    );
+
+    expect(ranks).toContain("10");
+    expect(ranks).not.toContain("7");
   });
 });
 
