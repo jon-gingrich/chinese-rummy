@@ -17,6 +17,7 @@ type PlayingCardProps = {
   card: Card;
   size?: CardSize;
   selected?: boolean;
+  justDrawn?: boolean;
   highlighted?: boolean;
   disabled?: boolean;
   /** Visual fade when not interactive. Defaults to `disabled` when omitted. */
@@ -208,6 +209,7 @@ export function PlayingCard({
   card,
   size = "md",
   selected = false,
+  justDrawn = false,
   highlighted = false,
   disabled = false,
   dimmed,
@@ -230,9 +232,11 @@ export function PlayingCard({
   const shellClasses = `relative shrink-0 overflow-hidden rounded-lg border bg-[#fffef8] shadow-md transition ${className} ${
     selected
       ? "border-[var(--accent)] ring-2 ring-[var(--accent)]/50"
-      : highlighted
-        ? "border-[var(--accent-soft)] ring-2 ring-[var(--accent)]/40"
-        : showWildShell
+      : justDrawn
+        ? "card-just-drawn border-[var(--accent)] ring-2 ring-[var(--accent)]"
+        : highlighted
+          ? "border-[var(--accent-soft)] ring-2 ring-[var(--accent)]/40"
+          : showWildShell
           ? displayOnly
             ? "border-amber-500 ring-1 ring-amber-400/60"
             : "border-amber-400"

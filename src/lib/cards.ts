@@ -115,6 +115,7 @@ export const FAN_SELECTION_SPREAD_PX = 14;
 
 /** Vertical lift applied to a selected card in the fan. */
 export const FAN_SELECTED_LIFT_PX = 8;
+export const FAN_JUST_DRAWN_LIFT_PX = 18;
 
 export function fanMarginExtra(
   index: number,

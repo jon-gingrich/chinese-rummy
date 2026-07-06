@@ -33,6 +33,7 @@ import { FeltSurface } from "./table/FeltSurface";
 import { layoutPlayers, PlayerBoard } from "./table/PlayerBoard";
 import { RoundSummaryOverlay } from "./table/RoundSummaryOverlay";
 import { StockDiscard } from "./table/StockDiscard";
+import { DrawCardFlyOverlay } from "./table/DrawCardFlyOverlay";
 import { TableHud } from "./table/TableHud";
 import { MeldSpread } from "./cards/MeldSpread";
 import { useLayOffFlow } from "../hooks/useLayOffFlow";
@@ -72,6 +73,12 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
     card: Card;
     target: LayOffTarget;
   } | null>(null);
+  const [drawFly, setDrawFly] = useState<{
+    source: "stock" | "discard";
+    card: Card | null;
+  } | null>(null);
+  const [justDrawnCardId, setJustDrawnCardId] = useState<string | null>(null);
+  const handBeforeDrawRef = useRef<Set<string> | null>(null);
   const activeDropGapIdRef = useRef<string | null>(null);
 
   const sensors = useSensors(
@@ -107,6 +114,33 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
       setHandMode("discard");
     }
   }, [canOpen]);
+
+  useEffect(() => {
+    if (!handBeforeDrawRef.current || !hand) {
+      return;
+    }
+    const newCard = hand.find((card) => !handBeforeDrawRef.current!.has(card.id));
+    if (newCard) {
+      setJustDrawnCardId(newCard.id);
+      handBeforeDrawRef.current = null;
+    }
+  }, [hand]);
+
+  useEffect(() => {
+    if (!justDrawnCardId) {
+      return;
+    }
+    const timeout = window.setTimeout(() => setJustDrawnCardId(null), 4500);
+    return () => window.clearTimeout(timeout);
+  }, [justDrawnCardId]);
+
+  useEffect(() => {
+    if (!drawFly) {
+      return;
+    }
+    const timeout = window.setTimeout(() => setDrawFly(null), 700);
+    return () => window.clearTimeout(timeout);
+  }, [drawFly]);
 
   useEffect(() => {
     if (
@@ -292,17 +326,30 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
   }
 
   async function handleDraw(source: "stock" | "discard") {
+    if (busy || drawFly) {
+      return;
+    }
+
+    handBeforeDrawRef.current = new Set(hand?.map((card) => card.id) ?? []);
+    setDrawFly({
+      source,
+      card: source === "discard" ? (table?.topDiscard ?? null) : null,
+    });
     setBusy(true);
     setStatus(null);
     try {
       const result = await game.draw(source);
       if (result.error) {
         setStatus(result.error);
+        handBeforeDrawRef.current = null;
+        setDrawFly(null);
       } else {
         setSelectedCardId(null);
       }
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Draw failed");
+      handBeforeDrawRef.current = null;
+      setDrawFly(null);
     } finally {
       setBusy(false);
     }
@@ -374,6 +421,7 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
       } else {
         setSelectedCardId(null);
         setShowDiscardConfirm(false);
+        setJustDrawnCardId(null);
       }
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Discard failed");
@@ -396,6 +444,10 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
   }
 
   function toggleHandCard(cardId: string) {
+    if (justDrawnCardId && cardId !== justDrawnCardId) {
+      setJustDrawnCardId(null);
+    }
+
     if (!isMyTurn || table?.turnPhase !== "discard" || busy) {
       return;
     }
@@ -704,6 +756,7 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
                   isMyTurn={isMyTurn}
                   turnPhase={table.turnPhase}
                   busy={busy}
+                  drawingSource={drawFly?.source ?? null}
                   onDrawStock={() => void handleDraw("stock")}
                   onDrawDiscard={() => void handleDraw("discard")}
                 />
@@ -1071,6 +1124,7 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
             onSortModeChange={setHandSortMode}
             showSortControls={false}
             size="lg"
+            justDrawnCardId={justDrawnCardId}
           />
           {status ? <p className="mt-0.5 text-xs font-semibold text-[var(--danger)]">{status}</p> : null}
         </div>
@@ -1079,6 +1133,8 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
         {draggingCard ? <HandCardDragOverlay card={draggingCard} size="lg" /> : null}
       </DragOverlay>
       </DndContext>
+
+      {drawFly ? <DrawCardFlyOverlay source={drawFly.source} card={drawFly.card} /> : null}
     </div>
   );
 }

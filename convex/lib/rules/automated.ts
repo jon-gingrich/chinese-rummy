@@ -2,7 +2,11 @@ import { isAutomatedPlayerId } from "../automatedPlayers";
 import { findOpeningMeldsForContract } from "./automatedOpening";
 import { applyAction, legalActions } from "./engine";
 import { deadwoodValue, scoreHand } from "./scoring";
-import type { Action, Card, GameState, LayOffTarget, WildDeclaration } from "./types";
+import type { Action, Card, GameState, LayOffTarget, PlayerState, WildDeclaration } from "./types";
+
+function mayLayOffThisTurn(player: PlayerState): boolean {
+  return player.playerPhase === "opened" && !(player.openedThisTurn ?? false);
+}
 
 export type AutomatedTurnStep =
   | { kind: "action"; action: Action }
@@ -153,11 +157,6 @@ export function chooseAutomatedTurnStep(
     return { kind: "idle" };
   }
 
-  const bestLayOff = pickBestLayOff(state, playerId, legal.layOffTargets);
-  if (bestLayOff) {
-    return { kind: "action", action: bestLayOff };
-  }
-
   if (legal.canOpen && player.playerPhase === "notOpened") {
     const contractRound = player.contractRound ?? state.roundNumber;
     const melds = findOpeningMeldsForContract(player.hand, contractRound);
@@ -167,6 +166,13 @@ export function chooseAutomatedTurnStep(
       if (remaining.length > 0) {
         return { kind: "action", action: { kind: "open", melds } };
       }
+    }
+  }
+
+  if (mayLayOffThisTurn(player)) {
+    const bestLayOff = pickBestLayOff(state, playerId, legal.layOffTargets);
+    if (bestLayOff) {
+      return { kind: "action", action: bestLayOff };
     }
   }
 

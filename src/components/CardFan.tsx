@@ -4,6 +4,7 @@ import type { Card } from "../../convex/lib/rules/types";
 import { scaledCardDimensions } from "../lib/cardDisplay";
 import { useCardScale } from "../contexts/PlayerPreferencesContext";
 import {
+  FAN_JUST_DRAWN_LIFT_PX,
   FAN_SELECTED_LIFT_PX,
   fanCardStep,
   fanContainerHeight,
@@ -27,6 +28,7 @@ type CardFanProps = {
   onSortModeChange: (mode: HandSortMode) => void;
   showSortControls?: boolean;
   size?: "md" | "lg";
+  justDrawnCardId?: string | null;
 };
 
 export function CardFan({
@@ -40,6 +42,7 @@ export function CardFan({
   onSortModeChange,
   showSortControls = true,
   size = "lg",
+  justDrawnCardId = null,
 }: CardFanProps) {
   const cardScale = useCardScale();
   const sortedCards = sortHand(cards, sortMode);
@@ -102,10 +105,15 @@ export function CardFan({
         >
           {sortedCards.map((card, index) => {
             const selected = selectedSet.has(card.id);
+            const justDrawn = card.id === justDrawnCardId;
             const rotation = fanRotation(index, sortedCards.length);
             const translateY = fanTranslateY(index, sortedCards.length);
             const extraMargin = fanMarginExtra(index, selectedIndices);
-            const lift = selected ? FAN_SELECTED_LIFT_PX : 0;
+            const lift = selected
+              ? FAN_SELECTED_LIFT_PX
+              : justDrawn
+                ? FAN_JUST_DRAWN_LIFT_PX
+                : 0;
 
             return (
               <DraggableHandCard
@@ -113,15 +121,16 @@ export function CardFan({
                 card={card}
                 size={size}
                 selected={selected}
+                justDrawn={justDrawn}
                 disabled={disabled}
                 dragEnabled={dragEnabled}
                 onClick={() => onToggle(card.id)}
-                className="relative transition-[margin,transform] duration-200 ease-out"
+                className={`relative transition-[margin,transform] duration-200 ease-out`}
                 style={{
                   marginLeft: index === 0 ? 0 : `${cardStep - cardWidth + extraMargin}px`,
                   transform: `rotate(${rotation}deg) translateY(${translateY - lift}px)`,
                   transformOrigin: "bottom center",
-                  zIndex: index + 1,
+                  zIndex: justDrawn ? sortedCards.length + 10 : index + 1,
                 }}
               />
             );

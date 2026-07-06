@@ -11,6 +11,7 @@ type DraggableHandCardProps = {
   card: Card;
   size?: CardSize;
   selected?: boolean;
+  justDrawn?: boolean;
   disabled?: boolean;
   dragEnabled?: boolean;
   onClick?: () => void;
@@ -22,6 +23,7 @@ export function DraggableHandCard({
   card,
   size = "lg",
   selected = false,
+  justDrawn = false,
   disabled = false,
   dragEnabled = false,
   onClick,
@@ -54,6 +56,7 @@ export function DraggableHandCard({
         card={card}
         size={size}
         selected={selected}
+        justDrawn={justDrawn}
         disabled={disabled}
         dimmed={false}
         onClick={onClick}

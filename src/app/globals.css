@@ -179,3 +179,65 @@ body {
 .turn-pulse {
   animation: turn-pulse 2s ease-in-out infinite;
 }
+
+@keyframes pile-draw-pickup {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  45% {
+    transform: translateY(-14px) scale(1.06);
+  }
+  100% {
+    transform: translateY(-10px) scale(1.03);
+    opacity: 0.55;
+  }
+}
+
+.pile-draw-pickup {
+  animation: pile-draw-pickup 0.4s ease-out forwards;
+}
+
+@keyframes card-draw-to-hand {
+  0% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1) rotate(0deg);
+  }
+  30% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-1.25rem) scale(1.1) rotate(-4deg);
+  }
+  100% {
+    opacity: 0.9;
+    transform: translateX(-50%) translateY(min(36vh, 18rem)) scale(1) rotate(2deg);
+  }
+}
+
+.card-draw-fly {
+  animation: card-draw-to-hand 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.card-draw-fly--stock {
+  left: calc(50% - 2.75rem);
+}
+
+.card-draw-fly--discard {
+  left: calc(50% + 2.75rem);
+}
+
+@keyframes card-just-drawn-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 3px var(--accent),
+      0 10px 28px rgb(201 162 39 / 45%);
+  }
+  50% {
+    box-shadow:
+      0 0 0 5px var(--accent-soft),
+      0 14px 36px rgb(201 162 39 / 60%);
+  }
+}
+
+.card-just-drawn {
+  animation: card-just-drawn-glow 1.1s ease-in-out 3;
+}

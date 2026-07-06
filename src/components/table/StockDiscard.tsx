@@ -14,6 +14,7 @@ type StockDiscardProps = {
   isMyTurn: boolean;
   turnPhase: "draw" | "discard" | "rummyWindow" | "reshuffle";
   busy: boolean;
+  drawingSource?: "stock" | "discard" | null;
   onDrawStock: () => void;
   onDrawDiscard: () => void;
 };
@@ -35,6 +36,7 @@ export function StockDiscard({
   isMyTurn,
   turnPhase,
   busy,
+  drawingSource = null,
   onDrawStock,
   onDrawDiscard,
 }: StockDiscardProps) {
@@ -56,7 +58,11 @@ export function StockDiscard({
       ) : null}
 
       <div className="flex flex-col items-center">
-        <div className={`relative ${isReshuffling ? "stock-shuffle" : ""}`}>
+        <div
+          className={`relative ${isReshuffling ? "stock-shuffle" : ""} ${
+            drawingSource === "stock" ? "pile-draw-pickup" : ""
+          }`}
+        >
           <PlayingCard
             card={{ id: "stock", suit: "spades", rank: "A", deckIndex: 0 }}
             faceDown
@@ -115,13 +121,15 @@ export function StockDiscard({
         ) : null}
 
         {topDiscard ? (
-          <PlayingCard
-            card={topDiscard}
-            size={PILE_SIZE}
-            highlighted={drawPhase && canDrawDiscard}
-            disabled={isReshuffling || !drawPhase || busy || !canDrawDiscard}
-            onClick={onDrawDiscard}
-          />
+          <div className={drawingSource === "discard" ? "pile-draw-pickup" : ""}>
+            <PlayingCard
+              card={topDiscard}
+              size={PILE_SIZE}
+              highlighted={drawPhase && canDrawDiscard}
+              disabled={isReshuffling || !drawPhase || busy || !canDrawDiscard}
+              onClick={onDrawDiscard}
+            />
+          </div>
         ) : (
           <div
             className="flex items-center justify-center rounded-lg border border-dashed border-white/15 text-[10px] text-white/40"
