@@ -76,7 +76,7 @@ If Microsoft sends you back to `/home` and you are still a guest, check Convex l
 server responded with an error in the response body
 ```
 
-That usually means Microsoft's multi-tenant issuer did not match during ID token validation (a known `@convex-dev/auth` issue with the `/common` endpoint). This repo applies a `patch-package` fix for that.
+That usually means Microsoft's multi-tenant issuer did not match during ID token validation (a known `@convex-dev/auth` issue with the `/common` endpoint).
 
 Other usual causes:
 

@@ -4,6 +4,19 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const OAUTH_PENDING_KEY = "oauthPendingProvider";
+const OAUTH_REDIRECT_KEY = "oauthRedirectPending";
+
+export function markOAuthRedirectPending() {
+  sessionStorage.setItem(OAUTH_REDIRECT_KEY, "1");
+}
+
+export function clearOAuthRedirectPending() {
+  sessionStorage.removeItem(OAUTH_REDIRECT_KEY);
+}
+
+export function isOAuthRedirectPending() {
+  return sessionStorage.getItem(OAUTH_REDIRECT_KEY) === "1";
+}
 
 const CONVEX_SITE_URL =
   process.env.NEXT_PUBLIC_CONVEX_SITE_URL ?? "https://<your-deployment>.convex.site";

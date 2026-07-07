@@ -4,6 +4,7 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
 import { useEffect, useRef } from "react";
 import { api } from "../../convex/_generated/api";
+import { isOAuthRedirectPending, clearOAuthRedirectPending } from "@/components/AuthErrorBanner";
 import { clearGuestUserId, readGuestUserId, rememberGuestUserId } from "../lib/guestSession";
 
 export function useGuestAuth() {
@@ -14,7 +15,13 @@ export function useGuestAuth() {
   const linking = useRef(false);
 
   useEffect(() => {
-    if (viewer === undefined || viewer !== null || signingIn.current) {
+    if (viewer && !viewer.isGuest) {
+      clearOAuthRedirectPending();
+    }
+  }, [viewer]);
+
+  useEffect(() => {
+    if (viewer === undefined || viewer !== null || signingIn.current || isOAuthRedirectPending()) {
       return;
     }
 

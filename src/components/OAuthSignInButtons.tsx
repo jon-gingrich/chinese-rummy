@@ -3,7 +3,11 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useState } from "react";
 import { OAUTH_PROVIDERS, type OAuthProviderId } from "@/lib/authProviders";
-import { markOAuthPending } from "@/components/AuthErrorBanner";
+import {
+  clearOAuthRedirectPending,
+  markOAuthPending,
+  markOAuthRedirectPending,
+} from "@/components/AuthErrorBanner";
 
 type OAuthSignInButtonsProps = {
   redirectTo: string;
@@ -16,7 +20,7 @@ export function OAuthSignInButtons({
   onBeforeSignIn,
   className,
 }: OAuthSignInButtonsProps) {
-  const { signIn } = useAuthActions();
+  const { signIn, signOut } = useAuthActions();
   const [loading, setLoading] = useState<OAuthProviderId | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,9 +29,14 @@ export function OAuthSignInButtons({
     setLoading(provider);
     setError(null);
     markOAuthPending(provider);
+    markOAuthRedirectPending();
     try {
+      // Sign out first so Convex Auth does not block the provider redirect with
+      // its token-refresh beforeunload guard while a guest session is active.
+      await signOut();
       await signIn(provider, { redirectTo });
     } catch (signInError) {
+      clearOAuthRedirectPending();
       const providerLabel = OAUTH_PROVIDERS.find((entry) => entry.id === provider)?.label ?? provider;
       setError(
         signInError instanceof Error ? signInError.message : `${providerLabel} sign-in failed`,
