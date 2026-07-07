@@ -1,15 +1,17 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery, useConvexAuth } from "convex/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
+import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { AppShell } from "@/components/AppShell";
 import { LinkAccountPrompt } from "../../components/LinkAccountPrompt";
 import { AuthErrorBanner } from "../../components/AuthErrorBanner";
 import { useGuestAuth } from "../../hooks/useGuestAuth";
+import { clearGuestUserId, markExplicitSignOut, wasExplicitSignOut } from "../../lib/guestSession";
 
 function PracticeActions() {
   const router = useRouter();
@@ -182,12 +184,28 @@ function RoomActions() {
 }
 
 export default function HomePage() {
+  const router = useRouter();
+  const { signOut } = useAuthActions();
+  const { isLoading: authLoading, isAuthenticated } = useConvexAuth();
   const { viewer, isLoading, isGuest } = useGuestAuth();
   const ensureCurrentUser = useMutation(api.users.ensureCurrentUser);
   const updateDisplayName = useMutation(api.users.updateDisplayName);
   const [displayName, setDisplayName] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated && viewer === null && wasExplicitSignOut()) {
+      router.replace("/");
+    }
+  }, [authLoading, isAuthenticated, router, viewer]);
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && viewer === null) {
+      void ensureCurrentUser().catch(() => undefined);
+    }
+  }, [authLoading, ensureCurrentUser, isAuthenticated, viewer]);
 
   useEffect(() => {
     if (viewer) {
@@ -216,10 +234,41 @@ export default function HomePage() {
     }
   }
 
-  if (isLoading || !viewer) {
+  async function handleSignOut() {
+    setSigningOut(true);
+    try {
+      markExplicitSignOut();
+      clearGuestUserId();
+      await signOut();
+      router.replace("/");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not sign out");
+      setSigningOut(false);
+    }
+  }
+
+  if (isLoading || authLoading) {
     return (
       <AppShell>
         <p className="text-center text-[var(--muted)]">Loading your profile…</p>
+      </AppShell>
+    );
+  }
+
+  if (!viewer) {
+    if (!isAuthenticated && wasExplicitSignOut()) {
+      return (
+        <AppShell>
+          <p className="text-center text-[var(--muted)]">Redirecting…</p>
+        </AppShell>
+      );
+    }
+
+    return (
+      <AppShell>
+        <p className="text-center text-[var(--muted)]">
+          {isAuthenticated ? "Loading your profile…" : "Starting guest session…"}
+        </p>
       </AppShell>
     );
   }
@@ -243,9 +292,14 @@ export default function HomePage() {
             <Link href="/home/settings" className="game-btn-secondary text-sm">
               Settings
             </Link>
-            <Link href="/sign-in" className="game-btn-secondary text-sm">
-              Account
-            </Link>
+            <button
+              type="button"
+              onClick={() => void handleSignOut()}
+              disabled={signingOut}
+              className="game-btn-secondary text-sm"
+            >
+              {signingOut ? "Signing out…" : "Sign out"}
+            </button>
           </div>
         ) : (
           <Link href="/home/settings" className="game-btn-secondary text-sm">

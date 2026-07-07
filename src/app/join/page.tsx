@@ -6,6 +6,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { api } from "../../../convex/_generated/api";
 import { AppShell } from "@/components/AppShell";
 import { useGuestAuth } from "../../hooks/useGuestAuth";
+import { clearExplicitSignOut } from "../../lib/guestSession";
 
 function readInviteCode(searchParams: URLSearchParams) {
   return (searchParams.get("room") ?? searchParams.get("code") ?? "")
@@ -22,6 +23,10 @@ export default function JoinRoomPage() {
   const [code, setCode] = useState(inviteCode);
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    clearExplicitSignOut();
+  }, []);
 
   useEffect(() => {
     if (inviteCode) {

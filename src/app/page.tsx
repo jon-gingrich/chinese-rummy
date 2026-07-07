@@ -1,7 +1,32 @@
+"use client";
+
+import { useQuery } from "convex/react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { api } from "../../convex/_generated/api";
 import { AppShell } from "@/components/AppShell";
+import { clearExplicitSignOut } from "@/lib/guestSession";
 
 export default function LandingPage() {
+  const router = useRouter();
+  const viewer = useQuery(api.users.viewer);
+  const signedIn = viewer !== undefined && viewer !== null && !viewer.isGuest;
+
+  useEffect(() => {
+    if (signedIn) {
+      router.replace("/home");
+    }
+  }, [router, signedIn]);
+
+  if (viewer === undefined || signedIn) {
+    return (
+      <AppShell wide>
+        <p className="text-center text-[var(--muted)]">Loading…</p>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell wide>
       <main className="flex min-h-[70vh] flex-col items-center justify-center gap-10 text-center">
@@ -19,10 +44,18 @@ export default function LandingPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <Link href="/join" className="game-btn-primary px-8 py-3">
+          <Link
+            href="/join"
+            onClick={() => clearExplicitSignOut()}
+            className="game-btn-primary px-8 py-3"
+          >
             Play as guest
           </Link>
-          <Link href="/sign-in" className="game-btn-secondary px-8 py-3">
+          <Link
+            href="/sign-in"
+            onClick={() => clearExplicitSignOut()}
+            className="game-btn-secondary px-8 py-3"
+          >
             Sign in
           </Link>
         </div>

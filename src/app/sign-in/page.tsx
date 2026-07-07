@@ -2,10 +2,10 @@
 
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useSearchParams } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { OAuthSignInButtons } from "@/components/OAuthSignInButtons";
-import { AuthErrorBanner, clearOAuthRedirectPending } from "@/components/AuthErrorBanner";
+import { AuthErrorBanner } from "@/components/AuthErrorBanner";
 import { rememberGuestUserId } from "../../lib/guestSession";
 import { useGuestAuth } from "../../hooks/useGuestAuth";
 
@@ -17,10 +17,6 @@ export default function SignInPage() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState<"email" | null>(null);
-
-  useEffect(() => {
-    clearOAuthRedirectPending();
-  }, []);
 
   function rememberGuestBeforeLinking() {
     if (viewer?.isGuest) {

@@ -4,19 +4,6 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const OAUTH_PENDING_KEY = "oauthPendingProvider";
-const OAUTH_REDIRECT_KEY = "oauthRedirectPending";
-
-export function markOAuthRedirectPending() {
-  sessionStorage.setItem(OAUTH_REDIRECT_KEY, "1");
-}
-
-export function clearOAuthRedirectPending() {
-  sessionStorage.removeItem(OAUTH_REDIRECT_KEY);
-}
-
-export function isOAuthRedirectPending() {
-  return sessionStorage.getItem(OAUTH_REDIRECT_KEY) === "1";
-}
 
 const CONVEX_SITE_URL =
   process.env.NEXT_PUBLIC_CONVEX_SITE_URL ?? "https://<your-deployment>.convex.site";
@@ -59,7 +46,9 @@ function friendlyAuthError(error: string, description: string | null) {
   if (error === "microsoft-entra-id") {
     return {
       title: "Microsoft sign-in failed",
-      message: `Microsoft rejected the sign-in. In Microsoft Entra → App registrations → Authentication, add this Redirect URI under the Web platform (not SPA): ${MICROSOFT_REDIRECT_URI}. Confirm personal Microsoft accounts are allowed and the client secret is valid.`,
+      message: description
+        ? `Microsoft OAuth error: ${description}. If this mentions issuer validation, run \`pnpm install\` to apply the Microsoft patch, then restart \`npx convex dev\`. Otherwise confirm the redirect URI (${MICROSOFT_REDIRECT_URI}) is registered under Web (not SPA), personal Microsoft accounts are allowed, and the client secret is valid.`
+        : `Microsoft rejected the sign-in. In Microsoft Entra → App registrations → Authentication, add this Redirect URI under the Web platform (not SPA): ${MICROSOFT_REDIRECT_URI}. Confirm personal Microsoft accounts are allowed and the client secret is valid. If Entra is already configured, restart \`npx convex dev\` after \`pnpm install\` so the Microsoft issuer patch is loaded.`,
     };
   }
 

@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@convex-dev/auth@0.0.94':
+    hash: z534tyjjo74kdc5oowawmq2mwu
+    path: patches/@convex-dev__auth@0.0.94.patch
+
 importers:
 
   .:
@@ -13,7 +18,7 @@ importers:
         version: 0.41.2
       '@convex-dev/auth':
         specifier: ^0.0.94
-        version: 0.0.94(@auth/core@0.41.2)(convex@1.42.1(react@19.2.7))(react@19.2.7)
+        version: 0.0.94(patch_hash=z534tyjjo74kdc5oowawmq2mwu)(@auth/core@0.41.2)(convex@1.42.1(react@19.2.7))(react@19.2.7)
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -2891,7 +2896,7 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
-  '@convex-dev/auth@0.0.94(@auth/core@0.41.2)(convex@1.42.1(react@19.2.7))(react@19.2.7)':
+  '@convex-dev/auth@0.0.94(patch_hash=z534tyjjo74kdc5oowawmq2mwu)(@auth/core@0.41.2)(convex@1.42.1(react@19.2.7))(react@19.2.7)':
     dependencies:
       '@auth/core': 0.41.2
       '@oslojs/crypto': 1.0.1
