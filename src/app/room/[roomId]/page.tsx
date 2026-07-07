@@ -50,7 +50,7 @@ export default function RoomLobbyPage() {
   const canStart = isHost && seatedCount >= 2 && allReady && room?.status === "lobby";
   const shareUrl =
     typeof window !== "undefined" && room
-      ? `${window.location.origin}/join?code=${room.code}`
+      ? `${window.location.origin}/join?room=${room.code}`
       : "";
   const isPlaying = room?.status === "playing";
 

@@ -34,6 +34,7 @@ import { FeltSurface } from "./table/FeltSurface";
 import { FeltSeatStack, groupLayoutsBySlot } from "./table/FeltSeatStack";
 import { layoutPlayers, PlayerBoard } from "./table/PlayerBoard";
 import { RoundSummaryOverlay } from "./table/RoundSummaryOverlay";
+import { StandingsModal } from "./table/StandingsModal";
 import { StockDiscard } from "./table/StockDiscard";
 import { DrawCardFlyOverlay } from "./table/DrawCardFlyOverlay";
 import { TableHud } from "./table/TableHud";
@@ -60,6 +61,7 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
   const [handSortMode, setHandSortMode] = useState<HandSortMode>("suit");
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  const [showStandings, setShowStandings] = useState(false);
   const [showHowToPlay, setShowHowToPlay] = useState(false);
   const [howToPlayAutoShown, setHowToPlayAutoShown] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -143,6 +145,12 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
     const timeout = window.setTimeout(() => setDrawFly(null), 700);
     return () => window.clearTimeout(timeout);
   }, [drawFly]);
+
+  useEffect(() => {
+    if (table?.lastRoundSummary || table?.phase === "gameEnd") {
+      setShowStandings(false);
+    }
+  }, [table?.lastRoundSummary, table?.phase]);
 
   useEffect(() => {
     if (
@@ -734,12 +742,21 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
         onConfirm={() => void confirmLayOffDropDialog()}
       />
 
+      <StandingsModal
+        open={showStandings}
+        onClose={() => setShowStandings(false)}
+        players={table.players}
+        viewerPlayerId={viewer?.userId}
+      />
+
       <TableHud
         roundNumber={table.roundNumber}
         contract={table.contract}
         turnMessage={turnMessage}
         isMyTurn={isMyTurn && table.phase === "playing"}
         players={table.players}
+        onStandingsClick={() => setShowStandings(true)}
+        standingsDisabled={showRoundOverlay}
         backHref={backHref}
         headerLabel={headerLabel}
         headerExtra={headerExtra}

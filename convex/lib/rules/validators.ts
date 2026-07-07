@@ -163,6 +163,7 @@ export const tablePlayerValidator = v.object({
   playerPhase: v.union(v.literal("notOpened"), v.literal("opened")),
   isActive: v.boolean(),
   isDealer: v.boolean(),
+  isHost: v.boolean(),
   cumulativeScore: v.number(),
   roundScore: v.optional(v.number()),
   canSubstitute: v.optional(v.boolean()),

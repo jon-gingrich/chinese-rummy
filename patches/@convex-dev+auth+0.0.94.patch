@@ -91,3 +91,18 @@ index 7838f7b..5634a0c 100644
      // ConvexAuth: We use the value of the nonce later, aside from feeding it into the
      // `processAuthorizationCodeResponse` function.
      const nonce = await checks.nonce.use(cookies, resCookies, options);
+diff --git a/node_modules/@convex-dev/auth/dist/react/client.js b/node_modules/@convex-dev/auth/dist/react/client.js
+index 0000000..1111111 100644
+--- a/node_modules/@convex-dev/auth/dist/react/client.js
++++ b/node_modules/@convex-dev/auth/dist/react/client.js
+@@ -149,7 +149,10 @@ export function AuthProvider({ client, serverState, onChange, shouldHandleCode,
+             // available, and they set it explicitly and intentionally for this
+             // purpose.
+             if (navigator.product !== "ReactNative") {
++                // OAuth redirect is intentional; don't block it with the token-refresh
++                // beforeunload guard (which otherwise prompts about unsaved changes).
++                setIsRefreshingToken(false);
+                 window.location.href = url.toString();
+             }
+             return { signingIn: false, redirect: url };
+

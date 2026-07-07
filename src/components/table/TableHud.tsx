@@ -11,7 +11,10 @@ type TablePlayer = {
   playerPhase: "notOpened" | "opened";
   isActive: boolean;
   isDealer: boolean;
+  isHost: boolean;
   cumulativeScore: number;
+  contractRound: number;
+  contract: string;
 };
 
 type TableHudProps = {
@@ -20,6 +23,8 @@ type TableHudProps = {
   turnMessage: string;
   isMyTurn: boolean;
   players: TablePlayer[];
+  onStandingsClick?: () => void;
+  standingsDisabled?: boolean;
   onRulesClick: () => void;
   onHowToPlayClick: () => void;
   settingsHref?: string;
@@ -35,6 +40,8 @@ export function TableHud({
   turnMessage,
   isMyTurn,
   players,
+  onStandingsClick,
+  standingsDisabled = false,
   onRulesClick,
   onHowToPlayClick,
   settingsHref,
@@ -44,6 +51,11 @@ export function TableHud({
   headerExtra,
 }: TableHudProps) {
   const sortedByScore = [...players].sort((a, b) => a.cumulativeScore - b.cumulativeScore);
+  const leader = sortedByScore[0];
+  const canOpenStandings = onStandingsClick !== undefined && !standingsDisabled;
+
+  const standingsChipClass =
+    "rounded-lg bg-black/20 px-2 py-0.5 text-xs transition-colors hover:bg-black/35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent-soft)] disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
     <header className="wood-rail z-20 flex shrink-0 items-center justify-between gap-2 border-b-2 border-[var(--wood-dark)] px-2 py-1 md:gap-3 md:px-3">
@@ -63,7 +75,7 @@ export function TableHud({
             </p>
           ) : null}
           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--accent-soft)] md:text-xs">
-            Hand {roundNumber}
+            Round {roundNumber}
           </p>
           <p className="truncate text-xs font-semibold text-[var(--cream)] md:text-sm">{contract}</p>
         </div>
@@ -80,19 +92,54 @@ export function TableHud({
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
-        <div className="hidden items-center gap-1.5 lg:flex">
-          {sortedByScore.map((player, index) => (
-            <div
-              key={player.id}
-              className="rounded-lg bg-black/20 px-2 py-0.5 text-xs"
-              title={player.displayName}
+        {onStandingsClick ? (
+          <>
+            <button
+              type="button"
+              disabled={!canOpenStandings}
+              onClick={onStandingsClick}
+              className={`lg:hidden ${standingsChipClass}`}
+              aria-label="View standings"
             >
-              <span className="font-bold text-[var(--cream)]">{player.displayName.split(" ")[0]}</span>
-              <span className="ml-1 text-[var(--accent-soft)]">{player.cumulativeScore}</span>
-              {index === 0 ? <span className="ml-0.5">👑</span> : null}
-            </div>
-          ))}
-        </div>
+              {leader ? (
+                <>
+                  <span aria-hidden="true">👑 </span>
+                  <span className="font-bold text-[var(--cream)]">
+                    {leader.displayName.split(" ")[0]}
+                  </span>
+                  {leader.isHost ? (
+                    <span className="ml-0.5" title="Host" aria-hidden="true">
+                      🏠
+                    </span>
+                  ) : null}
+                  <span className="ml-1 text-[var(--accent-soft)]">{leader.cumulativeScore}</span>
+                </>
+              ) : (
+                <span className="font-bold text-[var(--cream)]">Scores</span>
+              )}
+            </button>
+            <button
+              type="button"
+              disabled={!canOpenStandings}
+              onClick={onStandingsClick}
+              className={`hidden items-center gap-1.5 lg:flex ${standingsChipClass}`}
+              aria-label="View standings"
+            >
+              {sortedByScore.map((player, index) => (
+                <span key={player.id} title={player.displayName}>
+                  <span className="font-bold text-[var(--cream)]">{player.displayName.split(" ")[0]}</span>
+                  {player.isHost ? (
+                    <span className="ml-0.5" title="Host" aria-hidden="true">
+                      🏠
+                    </span>
+                  ) : null}
+                  <span className="ml-1 text-[var(--accent-soft)]">{player.cumulativeScore}</span>
+                  {index === 0 ? <span className="ml-0.5">👑</span> : null}
+                </span>
+              ))}
+            </button>
+          </>
+        ) : null}
         {headerExtra}
         <TableHudMenu
           onRulesClick={onRulesClick}

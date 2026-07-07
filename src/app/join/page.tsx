@@ -1,19 +1,33 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { api } from "../../../convex/_generated/api";
 import { AppShell } from "@/components/AppShell";
 import { useGuestAuth } from "../../hooks/useGuestAuth";
 
+function readInviteCode(searchParams: URLSearchParams) {
+  return (searchParams.get("room") ?? searchParams.get("code") ?? "")
+    .trim()
+    .toUpperCase();
+}
+
 export default function JoinRoomPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const inviteCode = readInviteCode(searchParams);
   const { viewer, isLoading } = useGuestAuth();
   const ensureCurrentUser = useMutation(api.users.ensureCurrentUser);
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(inviteCode);
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (inviteCode) {
+      setCode(inviteCode);
+    }
+  }, [inviteCode]);
 
   useEffect(() => {
     if (viewer) {
@@ -21,19 +35,20 @@ export default function JoinRoomPage() {
     }
   }, [ensureCurrentUser, viewer]);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const prefill = params.get("code");
-    if (prefill) {
-      setCode(prefill.toUpperCase());
-    }
-  }, []);
-
   const normalizedCode = code.trim().toUpperCase();
   const roomPreview = useQuery(
     api.rooms.getRoomByCode,
     normalizedCode.length === 6 ? { code: normalizedCode } : "skip",
   );
+
+  const isInviteLink = inviteCode.length === 6;
+
+  useEffect(() => {
+    if (!isInviteLink || !roomPreview || isLoading || viewer === null) {
+      return;
+    }
+    router.replace(`/room/${roomPreview._id}`);
+  }, [isInviteLink, isLoading, roomPreview, router, viewer]);
 
   async function handleJoin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -56,6 +71,57 @@ export default function JoinRoomPage() {
     return (
       <AppShell>
         <p className="text-center text-[var(--muted)]">Loading…</p>
+      </AppShell>
+    );
+  }
+
+  if (isInviteLink) {
+    if (roomPreview === undefined) {
+      return (
+        <AppShell>
+          <p className="text-center text-[var(--muted)]">Opening room…</p>
+        </AppShell>
+      );
+    }
+
+    if (roomPreview === null) {
+      return (
+        <AppShell
+          backHref="/home"
+          title="Join a room"
+          subtitle="This invite link is no longer valid."
+        >
+          <form
+            onSubmit={(event) => void handleJoin(event)}
+            className="game-panel mx-auto max-w-md space-y-4 p-6"
+          >
+            <p className="text-sm text-[var(--danger)]">
+              No room found for code {inviteCode}. Ask the host for a new link.
+            </p>
+            <label className="block space-y-2 text-sm">
+              <span className="font-semibold text-[var(--muted)]">Room code</span>
+              <input
+                value={code}
+                onChange={(event) => setCode(event.target.value.toUpperCase())}
+                minLength={6}
+                maxLength={6}
+                required
+                placeholder="ABC123"
+                className="game-input font-mono tracking-[0.35em] uppercase"
+              />
+            </label>
+            <button type="submit" disabled={loading || !roomPreview} className="game-btn-primary w-full">
+              {loading ? "Opening…" : "Continue to seats"}
+            </button>
+            {status ? <p className="text-sm text-[var(--muted)]">{status}</p> : null}
+          </form>
+        </AppShell>
+      );
+    }
+
+    return (
+      <AppShell>
+        <p className="text-center text-[var(--muted)]">Opening room…</p>
       </AppShell>
     );
   }

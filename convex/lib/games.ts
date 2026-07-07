@@ -242,6 +242,14 @@ export async function buildTableView(
     mode === "multiplayer" &&
     state.phase !== "gameEnd";
 
+  let hostPlayerId: string | undefined;
+  if (mode === "practice") {
+    hostPlayerId = state.players.find((player) => !isAutomatedPlayerId(player.id))?.id;
+  } else if (game.roomId) {
+    const room = await ctx.db.get("rooms", game.roomId);
+    hostPlayerId = room?.hostId;
+  }
+
   const players = await Promise.all(
     state.players.map(async (player, index) => {
       const automatedName = automatedDisplayName(automatedPlayers, player.id);
@@ -267,6 +275,7 @@ export async function buildTableView(
         playerPhase: player.playerPhase,
         isActive: player.seatIndex === state.activeSeatIndex,
         isDealer: player.seatIndex === state.dealerSeatIndex,
+        isHost: hostPlayerId !== undefined && player.id === hostPlayerId,
         cumulativeScore: state.cumulativeScores[index] ?? 0,
         roundScore: state.lastRoundSummary?.roundScores[index],
         canSubstitute:
