@@ -130,6 +130,9 @@ export function useOpeningFlow({
 
     setWildRanks((current) => {
       let next: Record<string, NaturalRank> | null = null;
+      // Accumulate sibling declarations within this pass so fixing one wild
+      // unlocks natural/valid ranks for the next card in the same update.
+      const ranksForPass = () => next ?? current;
 
       for (const card of selectedCards) {
         if (!isJoker(card) && card.rank !== "2") {
@@ -138,7 +141,7 @@ export function useOpeningFlow({
 
         const otherDeclarations = wildDeclarationsForSelection(
           selectedCards.filter((entry) => entry.id !== card.id),
-          current,
+          ranksForPass(),
         );
         const validRanks = findValidWildRanksForOpeningMeld(
           nextRequirement.kind,
@@ -146,7 +149,7 @@ export function useOpeningFlow({
           card,
           otherDeclarations,
         );
-        const chosenRank = currentWildRank(card, current);
+        const chosenRank = currentWildRank(card, ranksForPass());
 
         if (chosenRank && validRanks.includes(chosenRank)) {
           continue;
@@ -162,7 +165,7 @@ export function useOpeningFlow({
 
       return next ?? current;
     });
-  }, [nextRequirement, selectedIds, availableHand]);
+  }, [nextRequirement, selectedIds, selectedCards, wildRanks]);
 
   function buildMeldFromSelection(): OpeningMeld | null {
     if (!nextRequirement || selectedCards.length !== nextRequirement.size) {

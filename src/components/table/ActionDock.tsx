@@ -46,15 +46,19 @@ export function WildRankPicker({
     <div className="space-y-2">
       {cards.map((card) => {
         const allowed = validRanksByCardId?.[card.id] ?? naturalRanks;
+        const rawValue = wildRanks[card.id] ?? (card.rank === "2" ? "2" : "");
+        // Avoid an orphan <select> value when Natural 2 is no longer allowed.
+        const value =
+          rawValue !== "" && !allowed.includes(rawValue as NaturalRank) ? "" : rawValue;
         return (
           <label key={card.id} className="flex items-center gap-2 text-xs">
             <span className="min-w-14 font-semibold text-[var(--cream)]">{formatCardLabel(card)}</span>
             <select
-              value={wildRanks[card.id] ?? (card.rank === "2" ? "2" : "")}
+              value={value}
               onChange={(event) => onChange(card.id, event.target.value as NaturalRank)}
               className="game-input flex-1 py-1.5 text-xs"
             >
-              {isJoker(card) ? <option value="">Rank…</option> : null}
+              {isJoker(card) || value === "" ? <option value="">Rank…</option> : null}
               {card.rank === "2" && allowed.includes("2") ? (
                 <option value="2">Natural 2</option>
               ) : null}

@@ -324,7 +324,11 @@ function undeclaredOpeningWilds(
     if (isJoker(card)) {
       return declarationFor(card.id, wildDeclarations) === undefined;
     }
-    // Twos are optional wilds; only jokers must declare a rank up front.
+    // Optional wild twos: if still undeclared, search may treat them as natural
+    // (asRank "2") or as a substitute for another rank.
+    if (card.rank === "2") {
+      return declarationFor(card.id, wildDeclarations) === undefined;
+    }
     return false;
   });
 }
@@ -345,7 +349,7 @@ function openingMeldPossibleWithUndeclaredWilds(
   }
 
   // Bound search: opening melds are small; try each natural rank for the next
-  // undeclared joker and recurse.
+  // undeclared wild. For a two, asRank "2" means natural (see isWildInMeld).
   for (const asRank of NATURAL_RANKS) {
     const nextDeclarations = [
       ...wildDeclarations.filter((entry) => entry.cardId !== nextWild.id),
@@ -377,7 +381,8 @@ export function findValidWildRanksForOpeningMeld(
   const declarationsFor = (asRank: NaturalRank | "natural"): WildDeclaration[] => {
     const declarations = otherDeclarations.filter((entry) => entry.cardId !== wildCard.id);
     if (asRank === "natural") {
-      return declarations;
+      // Lock this two as natural so the undeclared-wild search does not reassign it.
+      return [...declarations, { cardId: wildCard.id, asRank: "2" }];
     }
     return [...declarations, { cardId: wildCard.id, asRank }];
   };
