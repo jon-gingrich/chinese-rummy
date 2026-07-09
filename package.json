@@ -41,10 +41,5 @@
     "eslint-config-next": "^16.2.10",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
-  },
-  "pnpm": {
-    "patchedDependencies": {
-      "@convex-dev/auth@0.0.94": "patches/@convex-dev__auth@0.0.94.patch"
-    }
   }
 }
