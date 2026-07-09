@@ -55,7 +55,7 @@ Wilds may not occupy adjacent slots in a meld. No joker-next-to-joker, no two-ne
 _Avoid_: Touching wilds, wild touching rule
 
 **Wild relocation**:
-When a natural card replaces a wild during lay-off, the displaced wild must move to another set or run on the same player's board. The relocating player chooses the destination. Adjacency rules do not apply during relocation.
+When a natural card replaces a wild during lay-off, the displaced wild must move to a set or run on the same player's board — including extending the same meld. The relocating player chooses the destination. Adjacency rules do not apply during relocation.
 _Avoid_: Wild swap, pulling a wild
 
 ## Contracts and play phases

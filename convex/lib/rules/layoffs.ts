@@ -60,13 +60,14 @@ function tryInsertIntoSet(
   meld: TableMeld,
   card: Card,
   extraDeclarations: WildDeclaration[] = [],
+  waiveAdjacency = false,
 ): TableMeld | null {
   const wildDeclarations = [...meld.wildDeclarations, ...extraDeclarations];
 
   for (let index = 0; index <= meld.cards.length; index += 1) {
     const cards = [...meld.cards];
     cards.splice(index, 0, card);
-    if (validateSetStructure(cards, wildDeclarations)) {
+    if (validateSetStructure(cards, wildDeclarations, waiveAdjacency)) {
       return { ...meld, cards, wildDeclarations };
     }
   }
@@ -111,27 +112,37 @@ function tryAddToRun(meld: TableMeld, card: Card): TableMeld | null {
   return null;
 }
 
-function tryAddWildToSet(meld: TableMeld, card: Card, asRank: NaturalRank): TableMeld | null {
+function tryAddWildToSet(
+  meld: TableMeld,
+  card: Card,
+  asRank: NaturalRank,
+  waiveAdjacency = false,
+): TableMeld | null {
   const rank = setRank(meld);
   if (!rank || asRank !== rank) {
     return null;
   }
 
   const wildDeclaration: WildDeclaration = { cardId: card.id, asRank };
-  return tryInsertIntoSet(meld, card, [wildDeclaration]);
+  return tryInsertIntoSet(meld, card, [wildDeclaration], waiveAdjacency);
 }
 
-function tryAddWildToRun(meld: TableMeld, card: Card, asRank: NaturalRank): TableMeld | null {
+function tryAddWildToRun(
+  meld: TableMeld,
+  card: Card,
+  asRank: NaturalRank,
+  waiveAdjacency = false,
+): TableMeld | null {
   const wildDeclaration: WildDeclaration = { cardId: card.id, asRank };
   const declarations = [...meld.wildDeclarations, wildDeclaration];
 
   const atStart: TableMeld = { ...meld, cards: [card, ...meld.cards], wildDeclarations: declarations };
-  if (validateRunStructure(atStart.cards, atStart.wildDeclarations)) {
+  if (validateRunStructure(atStart.cards, atStart.wildDeclarations, waiveAdjacency)) {
     return orderRunMeld(atStart);
   }
 
   const atEnd: TableMeld = { ...meld, cards: [...meld.cards, card], wildDeclarations: declarations };
-  if (validateRunStructure(atEnd.cards, atEnd.wildDeclarations)) {
+  if (validateRunStructure(atEnd.cards, atEnd.wildDeclarations, waiveAdjacency)) {
     return orderRunMeld(atEnd);
   }
 
@@ -142,7 +153,11 @@ function isWildLayOffCandidate(card: Card): boolean {
   return isJoker(card) || card.rank === "2";
 }
 
-function findValidWildRanksForMeld(meld: TableMeld, card: Card): NaturalRank[] {
+function findValidWildRanksForMeld(
+  meld: TableMeld,
+  card: Card,
+  waiveAdjacency = false,
+): NaturalRank[] {
   const ranks: NaturalRank[] = [];
 
   if (card.rank === "2") {
@@ -161,7 +176,9 @@ function findValidWildRanksForMeld(meld: TableMeld, card: Card): NaturalRank[] {
       continue;
     }
     const updated =
-      meld.kind === "set" ? tryAddWildToSet(meld, card, asRank) : tryAddWildToRun(meld, card, asRank);
+      meld.kind === "set"
+        ? tryAddWildToSet(meld, card, asRank, waiveAdjacency)
+        : tryAddWildToRun(meld, card, asRank, waiveAdjacency);
     if (updated) {
       ranks.push(asRank);
     }
@@ -234,7 +251,8 @@ export function findRelocationDestinations(
   const destinations: string[] = [];
   for (const candidate of ownerMelds(allMelds, target.ownerId)) {
     const baseMeld = candidate.id === target.id ? updatedTarget : candidate;
-    if (findValidWildRanksForMeld(baseMeld, wildCard).length > 0) {
+    // Relocation waives adjacency (ADR 0003); discovery must match apply.
+    if (findValidWildRanksForMeld(baseMeld, wildCard, true).length > 0) {
       destinations.push(candidate.id);
     }
   }
@@ -270,7 +288,7 @@ export function findValidRelocationRanks(
   }
 
   const baseMeld = destination.id === target.id ? updatedTarget : destination;
-  return findValidWildRanksForMeld(baseMeld, wildCard);
+  return findValidWildRanksForMeld(baseMeld, wildCard, true);
 }
 
 function replaceableWilds(meld: TableMeld, card: Card): string[] {
@@ -371,7 +389,7 @@ function applyReplacement(
     return { error: "Relocation destination not found" };
   }
   if (destination.ownerId !== target.ownerId) {
-    return { error: "Wild must relocate to another meld on the same owner board" };
+    return { error: "Wild must relocate to a meld on the same owner board" };
   }
 
   const updatedTarget = simulateReplacement(target, card, replaceWildCardId);
