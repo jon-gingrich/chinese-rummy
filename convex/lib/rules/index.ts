@@ -2,10 +2,12 @@ export {
   advanceFromReshuffle,
   applyAction,
   applyCallRummy,
+  applyRummyPickup,
   applyTakeBackDiscard,
   continueToNextRound,
   createGame,
   legalActions,
+  resolveStuckWildLeftover,
   startRound,
 } from "./engine";
 export {

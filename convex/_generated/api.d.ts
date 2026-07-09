@@ -40,6 +40,7 @@ import type * as lib_substitution from "../lib/substitution.js";
 import type * as lib_userByVerifiedEmail from "../lib/userByVerifiedEmail.js";
 import type * as lib_yahooProvider from "../lib/yahooProvider.js";
 import type * as practice from "../practice.js";
+import type * as repairs from "../repairs.js";
 import type * as rooms from "../rooms.js";
 import type * as stockReshuffle from "../stockReshuffle.js";
 import type * as users from "../users.js";
@@ -83,6 +84,7 @@ declare const fullApi: ApiFromModules<{
   "lib/userByVerifiedEmail": typeof lib_userByVerifiedEmail;
   "lib/yahooProvider": typeof lib_yahooProvider;
   practice: typeof practice;
+  repairs: typeof repairs;
   rooms: typeof rooms;
   stockReshuffle: typeof stockReshuffle;
   users: typeof users;

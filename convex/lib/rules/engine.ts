@@ -111,7 +111,7 @@ const EMPTY_LEGAL_ACTIONS: LegalActions = {
   canTakeBackDiscard: false,
 };
 
-function applyRummyPickup(
+export function applyRummyPickup(
   state: GameState,
   offenderId: string,
 ): { state: GameState } | { error: string } {
@@ -581,9 +581,6 @@ export function applyAction(
       return { state, error: GO_OUT_ERROR };
     }
 
-    const leftoverIsStuckWild =
-      remainingHand.length === 1 && isStuckWildCard(remainingHand[0]!);
-
     const players = [...state.players];
     players[playerIndex] = {
       ...player,
@@ -598,15 +595,7 @@ export function applyAction(
       melds: [...state.melds, ...buildTableMelds(playerId, action.melds, state.melds)],
     };
 
-    if (leftoverIsStuckWild) {
-      const pickupResult = applyRummyPickup(afterOpen, playerId);
-      if ("error" in pickupResult) {
-        return { state, error: pickupResult.error };
-      }
-      return { state: pickupResult.state };
-    }
-
-    return { state: afterOpen };
+    return resolveStuckWildLeftover(afterOpen, playerId);
   }
 
   if (action.kind === "layOff") {
@@ -702,6 +691,29 @@ export function applyAction(
   }
 
   return { state, error: "Unknown action" };
+}
+
+/** If the player holds only an undiscardable wild, apply stuck-wild rummy pickup. */
+export function resolveStuckWildLeftover(
+  state: GameState,
+  playerId: string,
+): ApplyActionResult {
+  const player = findPlayer(state, playerId);
+  if (!player) {
+    return { state, error: "Player not found" };
+  }
+
+  const leftoverIsStuckWild =
+    player.hand.length === 1 && isStuckWildCard(player.hand[0]!);
+  if (!leftoverIsStuckWild) {
+    return { state };
+  }
+
+  const pickupResult = applyRummyPickup(state, playerId);
+  if ("error" in pickupResult) {
+    return { state, error: pickupResult.error };
+  }
+  return { state: pickupResult.state };
 }
 
 export function applyCallRummy(state: GameState, callerId: string): ApplyActionResult {

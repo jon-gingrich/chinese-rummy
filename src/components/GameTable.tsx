@@ -47,6 +47,7 @@ import { StockDiscard } from "./table/StockDiscard";
 import { DrawCardFlyOverlay } from "./table/DrawCardFlyOverlay";
 import { TableHud } from "./table/TableHud";
 import { MeldSpread } from "./cards/MeldSpread";
+import { GameCelebrationOverlay } from "./celebration/GameCelebrationOverlay";
 import { useHandStaging } from "../hooks/useHandStaging";
 import { useLayOffFlow } from "../hooks/useLayOffFlow";
 import { useOpeningFlow } from "../hooks/useOpeningFlow";
@@ -697,7 +698,8 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
   const playerLayoutsBySlot = groupLayoutsBySlot(
     layoutPlayers(table.players, mySeatIndex, table.players.length),
   );
-  const showRoundOverlay = Boolean(table.lastRoundSummary) || table.phase === "gameEnd";
+  const isGameEnd = table.phase === "gameEnd";
+  const showRoundOverlay = Boolean(table.lastRoundSummary) && !isGameEnd;
   const goerName =
     table.players.find((player) => player.id === table.lastRoundSummary?.goerPlayerId)
       ?.displayName ?? "A player";
@@ -802,7 +804,7 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
         isMyTurn={isMyTurn && table.phase === "playing"}
         players={table.players}
         onStandingsClick={() => setShowStandings(true)}
-        standingsDisabled={showRoundOverlay}
+        standingsDisabled={showRoundOverlay || isGameEnd}
         backHref={backHref}
         headerLabel={headerLabel}
         headerExtra={headerExtra}
@@ -907,15 +909,25 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
               table.lastRoundSummary?.cumulativeScores ?? table.cumulativeScores
             }
             canContinue={table.canContinueRound}
-            isGameEnd={table.phase === "gameEnd"}
-            winnerNames={
-              table.players
-                .filter((player) => table.winnerPlayerIds?.includes(player.id))
-                .map((player) => player.displayName)
-                .join(", ") || undefined
-            }
             busy={busy}
             onContinue={() => void handleContinueRound()}
+          />
+
+          <GameCelebrationOverlay
+            open={isGameEnd}
+            mode={session.mode}
+            winnerPlayerIds={table.winnerPlayerIds}
+            players={table.players.map((player, index) => ({
+              id: player.id,
+              displayName: player.displayName,
+              cumulativeScore:
+                table.lastRoundSummary?.cumulativeScores[index] ??
+                player.cumulativeScore ??
+                table.cumulativeScores[index] ??
+                0,
+              roundScore:
+                player.roundScore ?? table.lastRoundSummary?.roundScores[index],
+            }))}
           />
 
           {isOpeningHandMode && opening.wildCardsNeedingRank.length > 0 ? (
