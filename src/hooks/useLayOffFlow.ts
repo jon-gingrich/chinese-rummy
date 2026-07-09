@@ -139,12 +139,56 @@ export function useLayOffFlow({
     beginLayOffTarget(target);
   }
 
-  function beginLayOffTarget(target: LayOffTarget) {
+  function beginLayOffTarget(target: LayOffTarget, cardForTarget: Card | null = selectedCard) {
     setSelectedTargetKey(targetKey(target));
-    if (target.mode === "replaceWild" && target.relocationDestinations.length === 1) {
-      setDestinationMeldId(target.relocationDestinations[0]!);
-    } else if (target.mode !== "replaceWild") {
+    if (target.mode === "replaceWild") {
+      const onlyDestination =
+        target.relocationDestinations.length === 1
+          ? target.relocationDestinations[0]!
+          : null;
+      setDestinationMeldId(onlyDestination);
+      if (onlyDestination && cardForTarget) {
+        const targetMeld = melds.find((meld) => meld.id === target.meldId);
+        if (targetMeld) {
+          const ranks = findValidRelocationRanks(
+            targetMeld,
+            cardForTarget,
+            target.replaceWildCardId,
+            onlyDestination,
+            melds,
+          );
+          if (ranks.length > 0) {
+            setWildRank(ranks[0]!);
+          }
+        }
+      }
+    } else {
       setDestinationMeldId(null);
+    }
+  }
+
+  function chooseDestination(meldId: string) {
+    if (!meldId) {
+      setDestinationMeldId(null);
+      return;
+    }
+    setDestinationMeldId(meldId);
+    if (!selectedTarget || selectedTarget.mode !== "replaceWild" || !selectedCard) {
+      return;
+    }
+    const targetMeld = melds.find((meld) => meld.id === selectedTarget.meldId);
+    if (!targetMeld) {
+      return;
+    }
+    const ranks = findValidRelocationRanks(
+      targetMeld,
+      selectedCard,
+      selectedTarget.replaceWildCardId,
+      meldId,
+      melds,
+    );
+    if (ranks.length > 0) {
+      setWildRank(ranks[0]!);
     }
   }
 
@@ -250,7 +294,7 @@ export function useLayOffFlow({
     selectedTargetKey,
     highlightMeldIds,
     destinationMeldId,
-    setDestinationMeldId,
+    setDestinationMeldId: chooseDestination,
     wildRank,
     setWildRank,
     naturalRanks: NATURAL_RANKS,

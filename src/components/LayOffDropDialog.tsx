@@ -133,9 +133,12 @@ export function LayOffDropDialog({
         )
       }
         confirmLabel="Lay off"
-        busy={busy || (needsRelocation && validRelocationRanks.length === 0)}
-      onCancel={onCancel}
-      onConfirm={onConfirm}
-    />
+        busy={busy}
+        confirmDisabled={
+          needsRelocation && (destinationMeldId === null || validRelocationRanks.length === 0)
+        }
+        onCancel={onCancel}
+        onConfirm={onConfirm}
+      />
   );
 }

@@ -225,7 +225,7 @@ export function OpeningPanel({
                     >
                       {isJoker(card) ? <option value="">Select rank</option> : null}
                       {card.rank === "2" ? <option value="2">Natural 2</option> : null}
-                      {NATURAL_RANKS.filter((rank) => rank !== "2" || card.rank === "2").map(
+                      {NATURAL_RANKS.filter((rank) => rank !== "2" || card.rank !== "2").map(
                         (rank) => (
                           <option key={rank} value={rank}>
                             {rank}

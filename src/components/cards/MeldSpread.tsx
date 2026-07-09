@@ -8,6 +8,7 @@ import { useCardScale } from "../../contexts/PlayerPreferencesContext";
 import { meldOverlapPx } from "../../lib/feltLayout";
 import { gapsMatch, meldGapDropId } from "../../lib/cardDrag";
 import {
+  GAP_EDGE_PAD_PX,
   gapLeftPx,
   MeldInsertionGap,
   spreadWidthWithGaps,
@@ -48,6 +49,7 @@ export function MeldSpread({
   const wildDeclarations = "wildDeclarations" in meld ? meld.wildDeclarations : [];
   const resolvedMeldId = meldIdProp ?? ("id" in meld ? meld.id : undefined);
   const showGaps = insertionGaps.length > 0 && resolvedMeldId !== undefined;
+  const edgePadPx = showGaps ? GAP_EDGE_PAD_PX : 0;
   const spreadWidth = showGaps
     ? spreadWidthWithGaps(meld.cards.length, cardWidth, overlap)
     : cardWidth + (meld.cards.length - 1) * (cardWidth - overlap);
@@ -81,7 +83,7 @@ export function MeldSpread({
           layoutId={`table-card-${card.id}`}
           transition={{ type: "spring", stiffness: 420, damping: 32 }}
           className="absolute top-0"
-          style={{ left: index * (cardWidth - overlap), zIndex: index }}
+          style={{ left: edgePadPx + index * (cardWidth - overlap), zIndex: index }}
         >
           <PlayingCard
             card={card}
@@ -98,7 +100,7 @@ export function MeldSpread({
               key={meldGapDropId(resolvedMeldId, gap)}
               meldId={resolvedMeldId}
               gap={gap}
-              leftPx={gapLeftPx(gap.insertIndex, cardWidth, overlap)}
+              leftPx={gapLeftPx(gap.insertIndex, cardWidth, overlap, edgePadPx)}
               heightPx={cardHeight}
               active={
                 activeDropGapId !== null &&

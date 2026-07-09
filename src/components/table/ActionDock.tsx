@@ -27,6 +27,8 @@ export function ActionDock({ title, children, actions }: ActionDockProps) {
 type WildRankPickerProps = {
   cards: Card[];
   wildRanks: Record<string, NaturalRank>;
+  /** Per-card allowed ranks. Falls back to naturalRanks when omitted for a card. */
+  validRanksByCardId?: Record<string, NaturalRank[]>;
   naturalRanks: NaturalRank[];
   isJoker: (card: Card) => boolean;
   onChange: (cardId: string, rank: NaturalRank) => void;
@@ -35,32 +37,40 @@ type WildRankPickerProps = {
 export function WildRankPicker({
   cards,
   wildRanks,
+  validRanksByCardId,
   naturalRanks,
   isJoker,
   onChange,
 }: WildRankPickerProps) {
   return (
     <div className="space-y-2">
-      {cards.map((card) => (
-        <label key={card.id} className="flex items-center gap-2 text-xs">
-          <span className="min-w-14 font-semibold text-[var(--cream)]">{formatCardLabel(card)}</span>
-          <select
-            value={wildRanks[card.id] ?? (card.rank === "2" ? "2" : "")}
-            onChange={(event) => onChange(card.id, event.target.value as NaturalRank)}
-            className="game-input flex-1 py-1.5 text-xs"
-          >
-            {isJoker(card) ? <option value="">Rank…</option> : null}
-            {card.rank === "2" ? <option value="2">Natural 2</option> : null}
-            {naturalRanks
-              .filter((rank) => rank !== "2" || card.rank === "2")
-              .map((rank) => (
-                <option key={rank} value={rank}>
-                  {rank}
-                </option>
-              ))}
-          </select>
-        </label>
-      ))}
+      {cards.map((card) => {
+        const allowed = validRanksByCardId?.[card.id] ?? naturalRanks;
+        return (
+          <label key={card.id} className="flex items-center gap-2 text-xs">
+            <span className="min-w-14 font-semibold text-[var(--cream)]">{formatCardLabel(card)}</span>
+            <select
+              value={wildRanks[card.id] ?? (card.rank === "2" ? "2" : "")}
+              onChange={(event) => onChange(card.id, event.target.value as NaturalRank)}
+              className="game-input flex-1 py-1.5 text-xs"
+            >
+              {isJoker(card) ? <option value="">Rank…</option> : null}
+              {card.rank === "2" && allowed.includes("2") ? (
+                <option value="2">Natural 2</option>
+              ) : null}
+              {allowed
+                // Twos already expose "2" as Natural 2 above; jokers still need "2"
+                // so a wild can start a low run (e.g. joker-as-2, 3, 4).
+                .filter((rank) => rank !== "2" || card.rank !== "2")
+                .map((rank) => (
+                  <option key={rank} value={rank}>
+                    {rank}
+                  </option>
+                ))}
+            </select>
+          </label>
+        );
+      })}
     </div>
   );
 }

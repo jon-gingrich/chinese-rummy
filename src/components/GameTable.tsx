@@ -576,7 +576,7 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
   async function handleLayOffDrop(card: Card, target: LayOffTarget) {
     if (layOff.targetNeedsFollowUp(target, card)) {
       setSelectedCardId(card.id);
-      layOff.beginLayOffTarget(target);
+      layOff.beginLayOffTarget(target, card);
       setLayOffDropDialog({ card, target });
       return;
     }
@@ -892,6 +892,7 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
               <WildRankPicker
                 cards={opening.wildCardsNeedingRank}
                 wildRanks={opening.wildRanks}
+                validRanksByCardId={opening.validRanksByCardId}
                 naturalRanks={opening.naturalRanks}
                 isJoker={isJoker}
                 onChange={(cardId, rank) =>
@@ -1018,7 +1019,9 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
                   <option value="">Choose meld…</option>
                   {layOff.relocationDestinations.map((meldId) => (
                     <option key={meldId} value={meldId}>
-                      Meld {meldId.slice(0, 6)}…
+                      {meldId === layOff.selectedTarget?.meldId
+                        ? "This meld (extend)"
+                        : `Meld ${meldId.slice(0, 6)}…`}
                     </option>
                   ))}
                 </select>
@@ -1029,12 +1032,17 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
                   value={layOff.wildRank}
                   onChange={(event) => layOff.setWildRank(event.target.value as typeof layOff.wildRank)}
                   className="game-input mt-1 py-1.5 text-xs"
+                  disabled={layOff.validRelocationRanks.length === 0}
                 >
-                  {layOff.naturalRanks.map((rank) => (
-                    <option key={rank} value={rank}>
-                      {rank}
-                    </option>
-                  ))}
+                  {layOff.validRelocationRanks.length === 0 ? (
+                    <option value="">Choose destination first…</option>
+                  ) : (
+                    layOff.validRelocationRanks.map((rank) => (
+                      <option key={rank} value={rank}>
+                        {rank}
+                      </option>
+                    ))
+                  )}
                 </select>
               </label>
             </ActionDock>

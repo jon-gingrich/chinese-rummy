@@ -61,13 +61,21 @@ export function MeldInsertionGap({
   );
 }
 
+/** Horizontal inset so a start gap (insertIndex 0) sits before the first card. */
+export const GAP_EDGE_PAD_PX = GAP_WIDTH_PX / 2;
+
 export function gapLeftPx(
   insertIndex: number,
   cardWidth: number,
   overlap: number,
+  edgePadPx = 0,
 ): number {
   const step = cardWidth - overlap;
-  return insertIndex * step + (cardWidth - GAP_WIDTH_PX) / 2;
+  // Start gap sits in the left pad, before the first card — not centered on it.
+  if (insertIndex === 0) {
+    return 0;
+  }
+  return edgePadPx + insertIndex * step + (cardWidth - GAP_WIDTH_PX) / 2;
 }
 
 export function spreadWidthWithGaps(
@@ -79,5 +87,6 @@ export function spreadWidthWithGaps(
     return cardWidth + GAP_WIDTH_PX;
   }
   const base = cardWidth + (cardCount - 1) * (cardWidth - overlap);
-  return base + GAP_WIDTH_PX / 2;
+  // Pad both ends so start and end insertion gaps are tappable.
+  return base + GAP_WIDTH_PX;
 }

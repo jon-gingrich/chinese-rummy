@@ -585,7 +585,7 @@ describe("wild relocation", () => {
     expect(result.error).toBe("Relocation leaves destination meld invalid");
   });
 
-  it("only offers valid ranks when extending the same run", () => {
+  it("defaults same-meld relocation to a valid extension rank", () => {
     const joker = makeCard("joker", "JOKER", 0);
     const fourDiamonds = makeCard("diamonds", "4", 1);
     const meld = tableMeld(
@@ -612,8 +612,11 @@ describe("wild relocation", () => {
       [meld],
     );
 
-    expect(ranks).toContain("10");
+    // Default wildRank in the UI is "7"; same-meld extension must not leave the
+    // confirm button stuck on an invalid default.
     expect(ranks).not.toContain("7");
+    expect(ranks.length).toBeGreaterThan(0);
+    expect(ranks).toContain("10");
   });
 });
 

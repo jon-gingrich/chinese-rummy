@@ -92,6 +92,133 @@ describe("set validation", () => {
     });
     expect(result).toBe("Wild card must declare a rank");
   });
+
+  it("rejects a set when wilds must be adjacent (too many wilds)", () => {
+    const jokerA = makeCard("joker", "JOKER", 0);
+    const jokerB = makeCard("joker", "JOKER", 1);
+    const jokerC = { ...makeCard("joker", "JOKER", 1), id: "joker-JOKER-2" };
+    const three = makeCard("hearts", "3");
+
+    expect(
+      validateOpeningMeld({
+        kind: "set",
+        cards: [jokerA, jokerB, jokerC, three],
+        wildDeclarations: [
+          { cardId: jokerA.id, asRank: "3" },
+          { cardId: jokerB.id, asRank: "3" },
+          { cardId: jokerC.id, asRank: "3" },
+        ],
+      }),
+    ).toBe("Wild cards cannot be adjacent");
+  });
+});
+
+describe("set wild ordering", () => {
+  it("accepts a set whose hand order has adjacent wilds when a legal interleaving exists", () => {
+    const jokerA = makeCard("joker", "JOKER", 0);
+    const jokerB = makeCard("joker", "JOKER", 1);
+    const threeHearts = makeCard("hearts", "3");
+    const threeSpades = makeCard("spades", "3");
+    const declarations = [
+      { cardId: jokerA.id, asRank: "3" as const },
+      { cardId: jokerB.id, asRank: "3" as const },
+    ];
+
+    // Opening selection follows hand order, which often groups wilds together.
+    // Player may have clicked wild → 3 → wild → 3; adjacency must use a legal layout.
+    const handOrder = [jokerA, jokerB, threeHearts, threeSpades];
+    expect(hasAdjacentWilds(handOrder, declarations)).toBe(true);
+
+    expect(
+      validateOpeningMeld({
+        kind: "set",
+        cards: handOrder,
+        wildDeclarations: declarations,
+      }),
+    ).toBeNull();
+  });
+
+  it("accepts a three-card set with two wilds when hand order groups the wilds", () => {
+    const jokerA = makeCard("joker", "JOKER", 0);
+    const jokerB = makeCard("joker", "JOKER", 1);
+    const three = makeCard("hearts", "3");
+    const declarations = [
+      { cardId: jokerA.id, asRank: "3" as const },
+      { cardId: jokerB.id, asRank: "3" as const },
+    ];
+
+    expect(
+      validateOpeningMeld({
+        kind: "set",
+        cards: [jokerA, jokerB, three],
+        wildDeclarations: declarations,
+      }),
+    ).toBeNull();
+  });
+});
+
+describe("run wild ordering", () => {
+  it("accepts a run of 4 with two wilds when hand order groups the wilds", () => {
+    const jokerA = makeCard("joker", "JOKER", 0);
+    const jokerB = makeCard("joker", "JOKER", 1);
+    const three = makeCard("hearts", "3");
+    const five = makeCard("hearts", "5");
+    const declarations = [
+      { cardId: jokerA.id, asRank: "4" as const },
+      { cardId: jokerB.id, asRank: "6" as const },
+    ];
+
+    // Hand order groups wilds; declared ranks place them in non-adjacent slots.
+    const handOrder = [jokerA, jokerB, three, five];
+    expect(hasAdjacentWilds(handOrder, declarations)).toBe(true);
+    expect(
+      hasAdjacentWilds(orderRunCards(handOrder, declarations), declarations),
+    ).toBe(false);
+
+    expect(
+      validateOpeningMeld({
+        kind: "run",
+        cards: handOrder,
+        wildDeclarations: declarations,
+      }),
+    ).toBeNull();
+  });
+
+  it("accepts a run of 4 with naturals together and wilds at both ends", () => {
+    const jokerA = makeCard("joker", "JOKER", 0);
+    const jokerB = makeCard("joker", "JOKER", 1);
+    const seven = makeCard("clubs", "7");
+    const eight = makeCard("clubs", "8");
+
+    expect(
+      validateOpeningMeld({
+        kind: "run",
+        cards: [jokerA, jokerB, seven, eight],
+        wildDeclarations: [
+          { cardId: jokerA.id, asRank: "6" },
+          { cardId: jokerB.id, asRank: "9" },
+        ],
+      }),
+    ).toBeNull();
+  });
+
+  it("rejects a run when declared ranks force wilds adjacent", () => {
+    const jokerA = makeCard("joker", "JOKER", 0);
+    const jokerB = makeCard("joker", "JOKER", 1);
+    const seven = makeCard("clubs", "7");
+    const eight = makeCard("clubs", "8");
+
+    expect(
+      validateOpeningMeld({
+        kind: "run",
+        cards: [jokerA, jokerB, seven, eight],
+        wildDeclarations: [
+          { cardId: jokerA.id, asRank: "9" },
+          { cardId: jokerB.id, asRank: "10" },
+        ],
+      }),
+    ).toBe("Wild cards cannot be adjacent");
+  });
 });
 
 describe("run validation", () => {

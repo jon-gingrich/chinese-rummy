@@ -9,6 +9,7 @@ type ConfirmDialogProps = {
   confirmLabel?: string;
   cancelLabel?: string;
   busy?: boolean;
+  confirmDisabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -20,12 +21,15 @@ export function ConfirmDialog({
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   busy = false,
+  confirmDisabled = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
   if (!open) {
     return null;
   }
+
+  const confirmBlocked = busy || confirmDisabled;
 
   return (
     <div
@@ -59,7 +63,7 @@ export function ConfirmDialog({
           </button>
           <button
             type="button"
-            disabled={busy}
+            disabled={confirmBlocked}
             onClick={onConfirm}
             className="game-btn-primary text-sm"
           >

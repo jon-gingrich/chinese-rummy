@@ -99,6 +99,30 @@ export function useOpeningFlow({
     return undefined;
   }
 
+  const validRanksByCardId = useMemo(() => {
+    if (!nextRequirement || selectedCards.length !== nextRequirement.size) {
+      return {} as Record<string, NaturalRank[]>;
+    }
+
+    const result: Record<string, NaturalRank[]> = {};
+    for (const card of selectedCards) {
+      if (!isJoker(card) && card.rank !== "2") {
+        continue;
+      }
+      const otherDeclarations = wildDeclarationsForSelection(
+        selectedCards.filter((entry) => entry.id !== card.id),
+        wildRanks,
+      );
+      result[card.id] = findValidWildRanksForOpeningMeld(
+        nextRequirement.kind,
+        selectedCards,
+        card,
+        otherDeclarations,
+      );
+    }
+    return result;
+  }, [nextRequirement, selectedCards, wildRanks]);
+
   useEffect(() => {
     if (!nextRequirement || selectedIds.length !== nextRequirement.size) {
       return;
@@ -128,7 +152,7 @@ export function useOpeningFlow({
           continue;
         }
 
-        if (validRanks.length === 1) {
+        if (validRanks.length > 0) {
           if (!next) {
             next = { ...current };
           }
@@ -309,6 +333,7 @@ export function useOpeningFlow({
     selectedCards,
     wildRanks,
     setWildRanks,
+    validRanksByCardId,
     wildCardsNeedingRank,
     naturalRanks: NATURAL_RANKS,
     canAddMeld: selectionValidation.canAdd,

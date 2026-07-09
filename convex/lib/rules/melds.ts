@@ -220,13 +220,65 @@ export function orderRunCards(cards: Card[], wildDeclarations: WildDeclaration[]
   });
 }
 
+/**
+ * Sets have no intrinsic order; hand/selection order often groups wilds.
+ * Interleave wilds with naturals so adjacency is only rejected when impossible
+ * (more wilds than naturals + 1).
+ */
+export function orderSetCards(cards: Card[], wildDeclarations: WildDeclaration[]): Card[] {
+  const wilds = cards.filter((card) => isWildInMeld(card, wildDeclarations));
+  const naturals = cards.filter((card) => !isWildInMeld(card, wildDeclarations));
+
+  if (wilds.length === 0 || naturals.length === 0) {
+    return [...cards];
+  }
+
+  if (!hasAdjacentWilds(cards, wildDeclarations)) {
+    return [...cards];
+  }
+
+  const ordered: Card[] = [];
+  let wildIndex = 0;
+  let naturalIndex = 0;
+
+  // Prefer starting with a natural when there are at least as many naturals as wilds,
+  // otherwise start with a wild (W N W N … W) so wilds stay separated.
+  const startWithNatural = naturals.length >= wilds.length;
+  while (wildIndex < wilds.length || naturalIndex < naturals.length) {
+    if (startWithNatural) {
+      if (naturalIndex < naturals.length) {
+        ordered.push(naturals[naturalIndex]!);
+        naturalIndex += 1;
+      }
+      if (wildIndex < wilds.length) {
+        ordered.push(wilds[wildIndex]!);
+        wildIndex += 1;
+      }
+    } else {
+      if (wildIndex < wilds.length) {
+        ordered.push(wilds[wildIndex]!);
+        wildIndex += 1;
+      }
+      if (naturalIndex < naturals.length) {
+        ordered.push(naturals[naturalIndex]!);
+        naturalIndex += 1;
+      }
+    }
+  }
+
+  return ordered;
+}
+
 export function normalizeOpeningMeld(meld: OpeningMeldInput): OpeningMeldInput {
-  if (meld.kind !== "run") {
-    return meld;
+  if (meld.kind === "run") {
+    return {
+      ...meld,
+      cards: orderRunCards(meld.cards, meld.wildDeclarations),
+    };
   }
   return {
     ...meld,
-    cards: orderRunCards(meld.cards, meld.wildDeclarations),
+    cards: orderSetCards(meld.cards, meld.wildDeclarations),
   };
 }
 
@@ -237,13 +289,23 @@ export function normalizeRunMeldCards(
   return orderRunCards(cards, wildDeclarations);
 }
 
+export function normalizeSetMeldCards(
+  cards: Card[],
+  wildDeclarations: WildDeclaration[],
+): Card[] {
+  return orderSetCards(cards, wildDeclarations);
+}
+
 export function normalizeTableMeld(meld: TableMeld): TableMeld {
-  if (meld.kind !== "run") {
-    return meld;
+  if (meld.kind === "run") {
+    return {
+      ...meld,
+      cards: normalizeRunMeldCards(meld.cards, meld.wildDeclarations),
+    };
   }
   return {
     ...meld,
-    cards: normalizeRunMeldCards(meld.cards, meld.wildDeclarations),
+    cards: normalizeSetMeldCards(meld.cards, meld.wildDeclarations),
   };
 }
 
@@ -252,6 +314,53 @@ export function withNormalizedRunMelds(state: GameState): GameState {
     ...state,
     melds: state.melds.map(normalizeTableMeld),
   };
+}
+
+function undeclaredOpeningWilds(
+  cards: Card[],
+  wildDeclarations: WildDeclaration[],
+): Card[] {
+  return cards.filter((card) => {
+    if (isJoker(card)) {
+      return declarationFor(card.id, wildDeclarations) === undefined;
+    }
+    // Twos are optional wilds; only jokers must declare a rank up front.
+    return false;
+  });
+}
+
+function openingMeldPossibleWithUndeclaredWilds(
+  kind: MeldKind,
+  cards: Card[],
+  wildDeclarations: WildDeclaration[],
+): boolean {
+  const undeclared = undeclaredOpeningWilds(cards, wildDeclarations);
+  if (undeclared.length === 0) {
+    return validateOpeningMeld({ kind, cards, wildDeclarations }) === null;
+  }
+
+  const [nextWild, ...rest] = undeclared;
+  if (!nextWild) {
+    return validateOpeningMeld({ kind, cards, wildDeclarations }) === null;
+  }
+
+  // Bound search: opening melds are small; try each natural rank for the next
+  // undeclared joker and recurse.
+  for (const asRank of NATURAL_RANKS) {
+    const nextDeclarations = [
+      ...wildDeclarations.filter((entry) => entry.cardId !== nextWild.id),
+      { cardId: nextWild.id, asRank },
+    ];
+    if (rest.length === 0) {
+      if (validateOpeningMeld({ kind, cards, wildDeclarations: nextDeclarations }) === null) {
+        return true;
+      }
+    } else if (openingMeldPossibleWithUndeclaredWilds(kind, cards, nextDeclarations)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export function findValidWildRanksForOpeningMeld(
@@ -274,7 +383,7 @@ export function findValidWildRanksForOpeningMeld(
   };
 
   if (wildCard.rank === "2") {
-    if (validateOpeningMeld({ kind, cards, wildDeclarations: declarationsFor("natural") }) === null) {
+    if (openingMeldPossibleWithUndeclaredWilds(kind, cards, declarationsFor("natural"))) {
       ranks.push("2");
     }
   }
@@ -283,7 +392,7 @@ export function findValidWildRanksForOpeningMeld(
     if (wildCard.rank === "2" && asRank === "2") {
       continue;
     }
-    if (validateOpeningMeld({ kind, cards, wildDeclarations: declarationsFor(asRank) }) === null) {
+    if (openingMeldPossibleWithUndeclaredWilds(kind, cards, declarationsFor(asRank))) {
       ranks.push(asRank);
     }
   }
@@ -367,10 +476,11 @@ function validateRun(
 }
 
 export function validateOpeningMeld(meld: OpeningMeldInput): string | null {
-  if (meld.kind === "set") {
-    return validateSet(meld.cards, meld.wildDeclarations, meld.cards.length);
+  const normalized = normalizeOpeningMeld(meld);
+  if (normalized.kind === "set") {
+    return validateSet(normalized.cards, normalized.wildDeclarations, normalized.cards.length);
   }
-  return validateRun(meld.cards, meld.wildDeclarations, meld.cards.length);
+  return validateRun(normalized.cards, normalized.wildDeclarations, normalized.cards.length);
 }
 
 export function validateOpeningMelds(

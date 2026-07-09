@@ -2,7 +2,7 @@
   "name": "chinese-rummy",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "pnpm@9.14.2",
+  "packageManager": "pnpm@11.10.0",
   "scripts": {
     "dev": "npm-run-all --parallel dev:frontend dev:backend",
     "dev:frontend": "next dev --turbopack",
@@ -31,7 +31,7 @@
   "devDependencies": {
     "@convex-dev/eslint-plugin": "^2.0.0",
     "@edge-runtime/vm": "^5.0.0",
-    "@types/node": "^26.1.0",
+    "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.63.0",
@@ -39,7 +39,7 @@
     "convex-test": "^0.0.54",
     "eslint": "^10.6.0",
     "eslint-config-next": "^16.2.10",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },
   "pnpm": {
