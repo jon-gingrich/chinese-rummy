@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   applyAction,
   createGame,
+  legalActions,
   startRound,
 } from "../../../convex/lib/rules";
 import { getContractForRound } from "../../../convex/lib/rules/contracts";
 import { makeCard } from "../../../convex/lib/rules/melds";
+import type { Card, GameState, OpeningMeld } from "../../../convex/lib/rules/types";
 
 function seatedPlayers(count: number) {
   return Array.from({ length: count }, (_, index) => ({
@@ -17,6 +19,48 @@ function seatedPlayers(count: number) {
 function afterDraw(state = startRound(createGame({ players: seatedPlayers(2) }), { seed: 1 })) {
   const activeId = state.players.find((player) => player.seatIndex === state.activeSeatIndex)!.id;
   return applyAction(state, { kind: "draw", source: "stock" }, activeId).state;
+}
+
+function roundOneOpeningCards(): Card[] {
+  return [
+    makeCard("hearts", "7"),
+    makeCard("spades", "7"),
+    makeCard("clubs", "7"),
+    makeCard("diamonds", "8"),
+    makeCard("hearts", "8"),
+    makeCard("spades", "8"),
+  ];
+}
+
+function roundOneMelds(openingCards: Card[]): OpeningMeld[] {
+  return [
+    { kind: "set", cards: openingCards.slice(0, 3), wildDeclarations: [] },
+    { kind: "set", cards: openingCards.slice(3, 6), wildDeclarations: [] },
+  ];
+}
+
+function preparedOpeningLeaving(
+  leftover: Card,
+  options: { discard?: Card[]; rummyPenaltyCounts?: Record<string, number> } = {},
+): { state: GameState; activeId: string; melds: OpeningMeld[] } {
+  const state = afterDraw();
+  const activeId = state.players.find((player) => player.seatIndex === state.activeSeatIndex)!.id;
+  const openingCards = roundOneOpeningCards();
+  const melds = roundOneMelds(openingCards);
+  const discardPile = options.discard ?? [
+    makeCard("clubs", "3"),
+    makeCard("diamonds", "4"),
+    makeCard("spades", "5"),
+  ];
+  const prepared: GameState = {
+    ...state,
+    discard: discardPile,
+    rummyPenaltyCounts: options.rummyPenaltyCounts ?? {},
+    players: state.players.map((player) =>
+      player.id === activeId ? { ...player, hand: [...openingCards, leftover] } : player,
+    ),
+  };
+  return { state: prepared, activeId, melds };
 }
 
 describe("applyAction open", () => {
@@ -156,5 +200,64 @@ describe("applyAction open", () => {
     state = applyAction(state, opening, activeId).state;
     const retry = applyAction(state, opening, activeId);
     expect(retry.error).toBe("Already opened this round");
+  });
+
+  it("applies stuck-wild pickup when opening leaves only a joker", () => {
+    const joker = makeCard("joker", "JOKER", 0);
+    const { state, activeId, melds } = preparedOpeningLeaving(joker);
+    const expectedPickup = state.discard.slice(-2);
+
+    const result = applyAction(state, { kind: "open", melds }, activeId);
+
+    expect(result.error).toBeUndefined();
+    expect(result.state.players.find((player) => player.id === activeId)?.playerPhase).toBe(
+      "opened",
+    );
+    expect(result.state.turnPhase).toBe("discard");
+    expect(result.state.rummyPenaltyCounts[activeId]).toBe(1);
+    expect(result.state.discard).toHaveLength(1);
+    const hand = result.state.players.find((player) => player.id === activeId)!.hand;
+    expect(hand.map((card) => card.id).sort()).toEqual(
+      [joker.id, ...expectedPickup.map((card) => card.id)].sort(),
+    );
+    expect(legalActions(result.state, activeId).discardableCards.length).toBeGreaterThan(0);
+  });
+
+  it("picks up the entire discard pile on a later stuck-wild opening", () => {
+    const two = makeCard("hearts", "2");
+    const prepared = preparedOpeningLeaving(two);
+    const { activeId, melds } = prepared;
+    const state: GameState = {
+      ...prepared.state,
+      rummyPenaltyCounts: { [activeId]: 1 },
+    };
+    const expectedPickup = [...state.discard];
+
+    const result = applyAction(state, { kind: "open", melds }, activeId);
+
+    expect(result.error).toBeUndefined();
+    expect(result.state.rummyPenaltyCounts[activeId]).toBe(2);
+    expect(result.state.discard).toHaveLength(0);
+    const hand = result.state.players.find((player) => player.id === activeId)!.hand;
+    expect(hand.map((card) => card.id).sort()).toEqual(
+      [two.id, ...expectedPickup.map((card) => card.id)].sort(),
+    );
+  });
+
+  it("picks up two from stock when opening leaves only a wild and discard is empty", () => {
+    const joker = makeCard("joker", "JOKER", 0);
+    const { state, activeId, melds } = preparedOpeningLeaving(joker, { discard: [] });
+    const stockTop = state.stock.slice(-2);
+
+    const result = applyAction(state, { kind: "open", melds }, activeId);
+
+    expect(result.error).toBeUndefined();
+    expect(result.state.rummyPenaltyCounts[activeId]).toBe(1);
+    expect(result.state.discard).toHaveLength(0);
+    expect(result.state.stock).toHaveLength(state.stock.length - 2);
+    const hand = result.state.players.find((player) => player.id === activeId)!.hand;
+    expect(hand.map((card) => card.id).sort()).toEqual(
+      [joker.id, ...stockTop.map((card) => card.id)].sort(),
+    );
   });
 });

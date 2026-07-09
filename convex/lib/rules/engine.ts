@@ -122,7 +122,24 @@ function applyRummyPickup(
 
   const offenseIndex = rummyPenaltyCount(state, offenderId);
   const counts = state.rummyPenaltyCounts ?? {};
-  const { picked, remaining } = takePickupCards(state.discard, offenseIndex);
+  let picked: Card[];
+  let remainingDiscard = state.discard;
+  let remainingStock = state.stock;
+
+  if (state.discard.length > 0) {
+    const fromDiscard = takePickupCards(state.discard, offenseIndex);
+    picked = fromDiscard.picked;
+    remainingDiscard = fromDiscard.remaining;
+  } else {
+    // Stuck-wild opening with an empty discard (e.g. lead player): take two from stock.
+    const count = Math.min(2, state.stock.length);
+    if (count === 0) {
+      return { error: "Stock is empty" };
+    }
+    picked = state.stock.slice(-count);
+    remainingStock = state.stock.slice(0, -count);
+  }
+
   if (picked.length === 0) {
     return { error: "Discard pile is empty" };
   }
@@ -138,7 +155,8 @@ function applyRummyPickup(
     state: {
       ...state,
       players,
-      discard: remaining,
+      discard: remainingDiscard,
+      stock: remainingStock,
       rummyPenaltyCounts: incrementRummyPenaltyCount(counts, offenderId),
       activeSeatIndex: player.seatIndex,
       turnPhase: "discard",
@@ -556,25 +574,39 @@ export function applyAction(
     }
 
     const meldCardIds = action.melds.flatMap((meld) => meld.cards.map((card) => card.id));
-    if (wouldMeldOut(player.hand, meldCardIds)) {
+    const remainingHand = removeCardsFromHand(player.hand, meldCardIds);
+
+    // Opening that empties the hand is illegal (must discard to go out).
+    if (remainingHand.length === 0) {
       return { state, error: GO_OUT_ERROR };
     }
+
+    const leftoverIsStuckWild =
+      remainingHand.length === 1 && isStuckWildCard(remainingHand[0]!);
 
     const players = [...state.players];
     players[playerIndex] = {
       ...player,
       playerPhase: "opened",
       openedThisTurn: true,
-      hand: removeCardsFromHand(player.hand, meldCardIds),
+      hand: remainingHand,
     };
 
-    return {
-      state: {
-        ...state,
-        players,
-        melds: [...state.melds, ...buildTableMelds(playerId, action.melds, state.melds)],
-      },
+    const afterOpen: GameState = {
+      ...state,
+      players,
+      melds: [...state.melds, ...buildTableMelds(playerId, action.melds, state.melds)],
     };
+
+    if (leftoverIsStuckWild) {
+      const pickupResult = applyRummyPickup(afterOpen, playerId);
+      if ("error" in pickupResult) {
+        return { state, error: pickupResult.error };
+      }
+      return { state: pickupResult.state };
+    }
+
+    return { state: afterOpen };
   }
 
   if (action.kind === "layOff") {

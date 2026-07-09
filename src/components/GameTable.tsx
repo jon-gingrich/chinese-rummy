@@ -20,7 +20,13 @@ import { api } from "../../convex/_generated/api";
 import { findLayOffGapTargets, findValidRelocationRanks } from "../../convex/lib/rules/layoffs";
 import { isJoker } from "../../convex/lib/rules/melds";
 import type { Card, LayOffTarget, TableMeld } from "../../convex/lib/rules/types";
-import { gapsMatch, parseHandCardDragId, parseMeldGapDropId } from "../lib/cardDrag";
+import {
+  gapsMatch,
+  isStagingHandDropId,
+  parseHandCardDragId,
+  parseMeldGapDropId,
+  parseStagingPileDropId,
+} from "../lib/cardDrag";
 import { TABLE_CARD_SIZE } from "../lib/feltLayout";
 import { formatCardLabel, sortHand, type HandSortMode } from "../lib/cards";
 import { CardFan } from "./CardFan";
@@ -28,6 +34,8 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { LayOffDropDialog } from "./LayOffDropDialog";
 import { RulesReference } from "./RulesReference";
 import { HandCardDragOverlay } from "./cards/DraggableHandCard";
+import { StagingHandDropZone } from "./hand/StagingHandDropZone";
+import { StagingPiles } from "./hand/StagingPiles";
 import { HowToPlayOverlay } from "./table/HowToPlayOverlay";
 import { ActionDock, WildRankPicker } from "./table/ActionDock";
 import { FeltSurface } from "./table/FeltSurface";
@@ -39,6 +47,7 @@ import { StockDiscard } from "./table/StockDiscard";
 import { DrawCardFlyOverlay } from "./table/DrawCardFlyOverlay";
 import { TableHud } from "./table/TableHud";
 import { MeldSpread } from "./cards/MeldSpread";
+import { useHandStaging } from "../hooks/useHandStaging";
 import { useLayOffFlow } from "../hooks/useLayOffFlow";
 import { useOpeningFlow } from "../hooks/useOpeningFlow";
 import { useGameSession, type GameSession } from "../hooks/useGameSession";
@@ -57,7 +66,7 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
   const { preferences, updatePreferences } = usePlayerPreferences();
   const viewer = useQuery(api.users.viewer);
   const { table, hand, legalActions } = game;
-  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
   const [handSortMode, setHandSortMode] = useState<HandSortMode>("suit");
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [showRules, setShowRules] = useState(false);
@@ -109,7 +118,7 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
   useEffect(() => {
     if (!isMyTurn || table?.turnPhase === "draw") {
       setHandMode("discard");
-      setSelectedCardId(null);
+      setSelectedCardIds([]);
     }
   }, [isMyTurn, table?.turnPhase]);
 
@@ -182,11 +191,24 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
     [hand, handSortMode],
   );
 
+  const selectedCardId = selectedCardIds.length === 1 ? selectedCardIds[0]! : null;
+
   const opening = useOpeningFlow({
     submitOpen: (melds) => game.open(melds),
     roundNumber: myPlayer?.contractRound ?? 1,
     hand: sortedHand,
     onStatus: setStatus,
+  });
+
+  const openingReservedIds = useMemo(
+    () => opening.pendingMelds.flatMap((meld) => meld.cards.map((card) => card.id)),
+    [opening.pendingMelds],
+  );
+
+  const staging = useHandStaging({
+    contractRound: myPlayer?.contractRound ?? 1,
+    hand: sortedHand,
+    reservedCardIds: openingReservedIds,
   });
 
   const layOff = useLayOffFlow({
@@ -195,7 +217,7 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
     melds: table?.melds ?? [],
     selectedCardId: canLayOff ? selectedCardId : null,
     onStatus: setStatus,
-    onComplete: () => setSelectedCardId(null),
+    onComplete: () => setSelectedCardIds([]),
   });
 
   const meldsByOwner = useMemo(() => {
@@ -211,14 +233,15 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
   const selectedCard =
     isOpeningHandMode
       ? opening.selectedCards[0] ?? null
-      : sortedHand.find((entry) => entry.id === selectedCardId) ?? null;
+      : selectedCardId
+        ? sortedHand.find((entry) => entry.id === selectedCardId) ?? null
+        : null;
 
-  const handCards = isOpeningHandMode ? opening.availableHand : sortedHand;
-  const handSelectedIds = isOpeningHandMode
-    ? opening.selectedIds
-    : selectedCardId
-      ? [selectedCardId]
-      : [];
+  const handCards = staging.cardsForFan(
+    isOpeningHandMode ? opening.availableHand : sortedHand,
+  );
+  const handSelectedIds = isOpeningHandMode ? opening.selectedIds : selectedCardIds;
+  const stageSelectionIds = isOpeningHandMode ? opening.selectedIds : selectedCardIds;
 
   const draggingCard = useMemo(
     () => sortedHand.find((entry) => entry.id === draggingCardId) ?? null,
@@ -273,6 +296,8 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
 
   const dragLayOffEnabled =
     canLayOff && !busy && !isOpeningHandMode && table?.turnPhase === "discard";
+  /** Organization drag is always on; lay-off gaps only accept drops when dragLayOffEnabled. */
+  const dragHandEnabled = Boolean(hand && hand.length > 0);
 
   const openingUndoButton =
     isOpeningHandMode && opening.pendingMelds.length > 0 ? (
@@ -356,7 +381,7 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
       if (result.error) {
         setStatus(result.error);
       } else {
-        setSelectedCardId(null);
+        setSelectedCardIds([]);
       }
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Take back failed");
@@ -384,7 +409,7 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
         handBeforeDrawRef.current = null;
         setDrawFly(null);
       } else {
-        setSelectedCardId(null);
+        setSelectedCardIds([]);
       }
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Draw failed");
@@ -459,7 +484,7 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
       if (result.error) {
         setStatus(result.error);
       } else {
-        setSelectedCardId(null);
+        setSelectedCardIds([]);
         setShowDiscardConfirm(false);
         setJustDrawnCardId(null);
       }
@@ -473,13 +498,25 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
   function switchToDiscardMode() {
     setHandMode("discard");
     opening.clearSelection();
-    setSelectedCardId(null);
+    setSelectedCardIds([]);
     setStatus(null);
   }
 
   function switchToOpeningMode() {
     setHandMode("opening");
-    setSelectedCardId(null);
+    if (selectedCardIds.length > 0) {
+      opening.seedSelection(selectedCardIds);
+    }
+    setSelectedCardIds([]);
+    setStatus(null);
+  }
+
+  function toggleOrganizationSelection(cardId: string) {
+    setSelectedCardIds((current) =>
+      current.includes(cardId)
+        ? current.filter((id) => id !== cardId)
+        : [...current, cardId],
+    );
     setStatus(null);
   }
 
@@ -488,7 +525,9 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
       setJustDrawnCardId(null);
     }
 
+    // Staging / organization: always allow selecting cards in hand or staging piles.
     if (!isMyTurn || table?.turnPhase !== "discard" || busy) {
+      toggleOrganizationSelection(cardId);
       return;
     }
 
@@ -498,7 +537,7 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
         const remaining = opening.selectedIds.filter((id) => id !== cardId);
         opening.clearSelection();
         setHandMode("discard");
-        setSelectedCardId(remaining.length === 1 ? remaining[0]! : null);
+        setSelectedCardIds(remaining.length === 1 ? [remaining[0]!] : []);
       } else {
         opening.toggleCard(cardId);
       }
@@ -506,49 +545,40 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
       return;
     }
 
-    if (canLayOff) {
-      setSelectedCardId((current) => (current === cardId ? null : cardId));
+    if (canOpen && opening.pendingMelds.length > 0) {
+      setHandMode("opening");
+      opening.seedSelection([cardId]);
+      setSelectedCardIds([]);
       setStatus(null);
       return;
     }
 
-    if (canOpen) {
-      if (opening.pendingMelds.length > 0) {
-        setHandMode("opening");
-        opening.seedSelection([cardId]);
-        setSelectedCardId(null);
-        setStatus(null);
-        return;
-      }
+    // Multi-select for staging anytime; discard / lay-off use the single-card selection.
+    toggleOrganizationSelection(cardId);
+  }
 
-      if (selectedCardId === cardId) {
-        setSelectedCardId(null);
-        setStatus(null);
-        return;
-      }
-
-      if (selectedCardId) {
-        setHandMode("opening");
-        opening.seedSelection([selectedCardId, cardId]);
-        setSelectedCardId(null);
-        setStatus(null);
-        return;
-      }
-
-      setSelectedCardId(cardId);
-      setStatus(null);
+  function handleStageSelected() {
+    const ids = isOpeningHandMode ? opening.selectedIds : selectedCardIds;
+    if (ids.length === 0) {
       return;
     }
-
-    setSelectedCardId((current) => (current === cardId ? null : cardId));
-    setStatus(null);
+    staging.stageSelected(ids);
+    if (isOpeningHandMode) {
+      opening.clearSelection();
+    } else {
+      setSelectedCardIds([]);
+    }
   }
 
   function handleDragStart(event: DragStartEvent) {
     const cardId = parseHandCardDragId(String(event.active.id));
     if (cardId) {
       setDraggingCardId(cardId);
-      setSelectedCardId(cardId);
+      if (!isOpeningHandMode) {
+        setSelectedCardIds((current) =>
+          current.includes(cardId) ? current : [cardId],
+        );
+      }
     }
   }
 
@@ -575,14 +605,14 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
 
   async function handleLayOffDrop(card: Card, target: LayOffTarget) {
     if (layOff.targetNeedsFollowUp(target, card)) {
-      setSelectedCardId(card.id);
+      setSelectedCardIds([card.id]);
       layOff.beginLayOffTarget(target, card);
       setLayOffDropDialog({ card, target });
       return;
     }
 
     await layOff.submitLayOffFor(card, target);
-    setSelectedCardId(null);
+    setSelectedCardIds([]);
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -593,6 +623,22 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
     activeDropGapIdRef.current = null;
 
     if (!cardId || !overId) {
+      return;
+    }
+
+    const stagingPileIndex = parseStagingPileDropId(overId);
+    if (stagingPileIndex !== null) {
+      staging.moveCard(cardId, stagingPileIndex);
+      staging.setActivePileIndex(stagingPileIndex);
+      return;
+    }
+
+    if (isStagingHandDropId(overId)) {
+      staging.moveCard(cardId, null);
+      return;
+    }
+
+    if (!dragLayOffEnabled) {
       return;
     }
 
@@ -623,7 +669,7 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
     const success = await layOff.submitLayOffFor(card, target);
     if (success) {
       setLayOffDropDialog(null);
-      setSelectedCardId(null);
+      setSelectedCardIds([]);
     }
   }
 
@@ -1179,18 +1225,34 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
               ) : null}
             </div>
           </div>
-          <CardFan
-            cards={handCards}
-            selectedIds={handSelectedIds}
-            onToggle={toggleHandCard}
-            disabled={!isMyTurn || table.turnPhase !== "discard" || busy}
-            dragEnabled={dragLayOffEnabled}
-            sortMode={handSortMode}
-            onSortModeChange={setHandSortMode}
-            showSortControls={false}
-            size={TABLE_CARD_SIZE}
-            justDrawnCardId={justDrawnCardId}
-          />
+          <div className="mb-1.5">
+            <StagingPiles
+              piles={staging.piles}
+              activePileIndex={staging.activePileIndex}
+              selectedIds={handSelectedIds}
+              onSelectPile={staging.setActivePileIndex}
+              onToggleCard={toggleHandCard}
+              onUnstage={staging.unstage}
+              onStageSelected={handleStageSelected}
+              canStage={stageSelectionIds.length > 0}
+              cardDisabled={false}
+              dragEnabled={dragHandEnabled}
+            />
+          </div>
+          <StagingHandDropZone>
+            <CardFan
+              cards={handCards}
+              selectedIds={handSelectedIds}
+              onToggle={toggleHandCard}
+              disabled={false}
+              dragEnabled={dragHandEnabled}
+              sortMode={handSortMode}
+              onSortModeChange={setHandSortMode}
+              showSortControls={false}
+              size={TABLE_CARD_SIZE}
+              justDrawnCardId={justDrawnCardId}
+            />
+          </StagingHandDropZone>
           {status ? <p className="mt-0 text-xs font-semibold text-[var(--danger)]">{status}</p> : null}
         </div>
       ) : null}

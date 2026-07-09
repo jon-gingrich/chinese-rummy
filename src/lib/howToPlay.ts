@@ -28,6 +28,6 @@ export const HOW_TO_PLAY_STEPS: HowToPlayStep[] = [
   {
     id: "finish",
     title: "Go out to end the round",
-    body: "When you have one card left, discard it to go out. You score zero deadwood that round. Use the Rules button anytime for contracts, wild adjacency, and scoring details.",
+    body: "When you have one card left, discard it to go out — but jokers and twos cannot be discarded. If your last card is a wild (or opening leaves only a wild), lay it off or open, take the stuck-wild rummy pickup, then discard. You score zero deadwood when you go out. Use the Rules button anytime for contracts, wild adjacency, and scoring details.",
   },
 ];

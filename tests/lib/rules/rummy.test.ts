@@ -259,6 +259,45 @@ describe("rummy window", () => {
       applyAction(state, { kind: "discard", card: makeCard("hearts", "2") }, activeId).error,
     ).toBe("Jokers and twos cannot be discarded");
   });
+  it("applies stuck-wild pickup when laying off a last joker", () => {
+    let state = gameWithDealtHands();
+    const activeId = activePlayerId(state);
+    const opponentId = otherPlayerId(state);
+    const joker = makeCard("joker", "JOKER");
+    const underCard = makeCard("clubs", "3", "c3");
+    const topCard = makeCard("diamonds", "4", "d4");
+
+    state = {
+      ...state,
+      turnPhase: "discard",
+      discard: [underCard, topCard],
+      melds: [setOfSevens(opponentId)],
+      players: state.players.map((player) =>
+        player.id === activeId
+          ? { ...player, playerPhase: "opened", openedThisTurn: false, hand: [joker] }
+          : { ...player, playerPhase: "opened" },
+      ),
+    };
+
+    const result = applyAction(
+      state,
+      {
+        kind: "layOff",
+        targetMeldId: "set-7",
+        card: joker,
+        wildDeclaration: { cardId: joker.id, asRank: "7" },
+      },
+      activeId,
+    );
+
+    expect(result.error).toBeUndefined();
+    expect(result.state.turnPhase).toBe("discard");
+    expect(result.state.rummyPenaltyCounts[activeId]).toBe(1);
+    expect(result.state.discard).toHaveLength(0);
+    const hand = result.state.players.find((p) => p.id === activeId)!.hand;
+    expect(hand.map((card) => card.id).sort()).toEqual(["c3", "d4"].sort());
+    expect(legalActions(result.state, activeId).canDiscard).toBe(true);
+  });
 });
 
 describe("legalActions during rummy window", () => {

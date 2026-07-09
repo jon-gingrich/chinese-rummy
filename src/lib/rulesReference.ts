@@ -55,7 +55,9 @@ After you open, you cannot create new melds for the rest of the round — only l
 
 Lay off adds a card to an existing meld after your opening turn. You may lay off on any player's melds on your next turn and every turn after (not the same turn you opened).
 
-Going out ends the round by discarding your last card, leaving zero cards in hand.`,
+Going out ends the round by discarding your last card, leaving zero cards in hand.
+
+Stuck wild resolution: jokers and twos cannot be discarded. If your only remaining card is a joker or two, lay it off on a meld — then take a rummy penalty from the discard pile (two cards on first offense, entire pile on later offenses) and discard again. The same pickup applies when your Opening turn leaves only a joker or two in hand.`,
   },
   {
     id: "deadwoodScoring",

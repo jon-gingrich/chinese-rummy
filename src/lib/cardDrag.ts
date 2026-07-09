@@ -2,6 +2,8 @@ import type { InsertionGap } from "../../convex/lib/rules/layoffs";
 
 export const HAND_CARD_DRAG_PREFIX = "hand:";
 export const MELD_GAP_DROP_PREFIX = "gap:";
+export const STAGING_PILE_DROP_PREFIX = "staging:";
+export const STAGING_HAND_DROP_ID = "staging-hand";
 
 const ADD_MARKER = ":add:";
 const REPLACE_MARKER = ":replace:";
@@ -15,6 +17,22 @@ export function parseHandCardDragId(id: string): string | null {
     return null;
   }
   return id.slice(HAND_CARD_DRAG_PREFIX.length);
+}
+
+export function stagingPileDropId(pileIndex: number): string {
+  return `${STAGING_PILE_DROP_PREFIX}${pileIndex}`;
+}
+
+export function parseStagingPileDropId(id: string): number | null {
+  if (!id.startsWith(STAGING_PILE_DROP_PREFIX)) {
+    return null;
+  }
+  const index = Number(id.slice(STAGING_PILE_DROP_PREFIX.length));
+  return Number.isInteger(index) && index >= 0 ? index : null;
+}
+
+export function isStagingHandDropId(id: string): boolean {
+  return id === STAGING_HAND_DROP_ID;
 }
 
 export function meldGapDropId(meldId: string, gap: InsertionGap): string {

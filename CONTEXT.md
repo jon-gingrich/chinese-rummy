@@ -109,8 +109,8 @@ A joker or any two may never be discarded — even when no melds are on the tabl
 _Avoid_: Wild discard ban
 
 **Stuck wild resolution**:
-When a player's only card is a joker or two, they lay it off on a meld, then immediately pick up cards from the discard pile — two cards on first offense, entire pile on second and later — using the same per-game rummy penalty counter as a successful rummy call. They must then discard one before play passes clockwise.
-_Avoid_: Wild go-out, last-card wild
+When a player's only card is a joker or two, they lay it off on a meld, then immediately pick up cards from the discard pile — two cards on first offense, entire pile on second and later — using the same per-game rummy penalty counter as a successful rummy call. They must then discard one before play passes clockwise. The same pickup applies when an Opening turn leaves only a joker or two in hand: the contract melds go down, then the player takes the rummy penalty and must discard. If the discard pile is empty (for example the lead player's opening), the pickup comes from the stock instead — two cards.
+_Avoid_: Wild go-out, last-card wild, automatic rummy (prose for the pickup; **Stuck wild resolution** is the canonical term)
 
 **Rummy penalty counter**:
 Per player, per game: tracks how many times that player has faced rummy pickup (successful rummy calls and stuck-wild resolutions). First offense → two-card pickup; second and later → entire discard pile. Resets when a new game begins.

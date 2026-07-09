@@ -221,7 +221,7 @@ export function OpeningPanel({
                           [card.id]: event.target.value as NaturalRank,
                         }))
                       }
-                      className="rounded-lg border border-white/10 bg-black/40 px-3 py-2"
+                      className="game-input py-2 text-sm"
                     >
                       {isJoker(card) ? <option value="">Select rank</option> : null}
                       {card.rank === "2" ? <option value="2">Natural 2</option> : null}
