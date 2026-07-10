@@ -90,7 +90,7 @@ export function fanRotation(index: number, total: number): number {
   return start + index * step;
 }
 
-export function fanCardStep(total: number, cardWidth = 94): number {
+export function fanCardStep(total: number, cardWidth = 118): number {
   if (total <= 8) {
     return Math.round(cardWidth * 0.58);
   }

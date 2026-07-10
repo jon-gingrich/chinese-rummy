@@ -27,7 +27,6 @@ import {
   parseMeldGapDropId,
   parseStagingPileDropId,
 } from "../lib/cardDrag";
-import { TABLE_CARD_SIZE } from "../lib/feltLayout";
 import { formatCardLabel, sortHand, type HandSortMode } from "../lib/cards";
 import { CardFan } from "./CardFan";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -53,6 +52,7 @@ import { useLayOffFlow } from "../hooks/useLayOffFlow";
 import { useOpeningFlow } from "../hooks/useOpeningFlow";
 import { useGameSession, type GameSession } from "../hooks/useGameSession";
 import { usePlayerPreferences } from "../contexts/PlayerPreferencesContext";
+import { useTableCardSize, useTableMeldCardSize } from "../hooks/useTableCardSize";
 
 type GameTableProps = {
   session: GameSession;
@@ -64,6 +64,8 @@ type GameTableProps = {
 export function GameTable({ session, backHref, headerLabel, headerExtra }: GameTableProps) {
   const router = useRouter();
   const game = useGameSession(session);
+  const tableCardSize = useTableCardSize();
+  const tableMeldCardSize = useTableMeldCardSize();
   const { preferences, updatePreferences } = usePlayerPreferences();
   const viewer = useQuery(api.users.viewer);
   const { table, hand, legalActions } = game;
@@ -242,7 +244,6 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
     isOpeningHandMode ? opening.availableHand : sortedHand,
   );
   const handSelectedIds = isOpeningHandMode ? opening.selectedIds : selectedCardIds;
-  const stageSelectionIds = isOpeningHandMode ? opening.selectedIds : selectedCardIds;
 
   const draggingCard = useMemo(
     () => sortedHand.find((entry) => entry.id === draggingCardId) ?? null,
@@ -558,19 +559,6 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
     toggleOrganizationSelection(cardId);
   }
 
-  function handleStageSelected() {
-    const ids = isOpeningHandMode ? opening.selectedIds : selectedCardIds;
-    if (ids.length === 0) {
-      return;
-    }
-    staging.stageSelected(ids);
-    if (isOpeningHandMode) {
-      opening.clearSelection();
-    } else {
-      setSelectedCardIds([]);
-    }
-  }
-
   function handleDragStart(event: DragStartEvent) {
     const cardId = parseHandCardDragId(String(event.active.id));
     if (cardId) {
@@ -845,7 +833,7 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
         onDragEnd={handleDragEnd}
       >
       <div className="wood-rail relative m-0.5 flex min-h-0 flex-1 flex-col rounded-xl p-0.5 shadow-2xl md:m-1 md:p-1">
-        <div className="relative min-h-0 flex-1 overflow-x-auto overflow-y-visible rounded-lg">
+        <div className="felt-surface relative min-h-0 flex-1 overflow-auto rounded-lg">
           <FeltSurface
             center={
               table.phase === "playing" ? (
@@ -858,6 +846,7 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
                   turnPhase={table.turnPhase}
                   busy={busy}
                   drawingSource={drawFly?.source ?? null}
+                  cardSize={tableCardSize}
                   onDrawStock={() => void handleDraw("stock")}
                   onDrawDiscard={() => void handleDraw("discard")}
                 />
@@ -876,6 +865,7 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
                     highlightMeldIds={layOff.highlightMeldIds}
                     layOffGapTargets={draggingCardId ? layOffGapTargets : []}
                     activeDropGapId={activeDropGapId}
+                    cardSize={tableMeldCardSize}
                     onMeldClick={canLayOff && selectedCardId ? layOff.selectMeld : undefined}
                     onPendingMeldClick={
                       isOpeningHandMode && player.id === viewer?.userId
@@ -1166,35 +1156,67 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
 
       {table.phase === "playing" ? (
         <div className="wood-rail shrink-0 overflow-visible border-t-2 border-[var(--wood-dark)] px-1.5 pb-0.5 pt-0">
-          <div className="mb-0 flex flex-wrap items-center justify-between gap-x-2 gap-y-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-xs font-bold text-[var(--accent-soft)]">Your hand</p>
-              <div className="flex gap-1 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setHandSortMode("suit")}
-                  className={`rounded-full px-2 py-0.5 font-semibold ${
-                    handSortMode === "suit"
-                      ? "bg-[var(--accent)] text-[#2c1810]"
-                      : "border border-[var(--card-border)] text-[var(--muted)]"
-                  }`}
-                >
-                  Suit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setHandSortMode("rank")}
-                  className={`rounded-full px-2 py-0.5 font-semibold ${
-                    handSortMode === "rank"
-                      ? "bg-[var(--accent)] text-[#2c1810]"
-                      : "border border-[var(--card-border)] text-[var(--muted)]"
-                  }`}
-                >
-                  Rank
-                </button>
+          <div className="flex items-end gap-2">
+            <div className="min-w-0 shrink-0 max-w-[38%]">
+              <StagingPiles
+                piles={staging.piles}
+                activePileIndex={staging.activePileIndex}
+                selectedIds={handSelectedIds}
+                sortMode={handSortMode}
+                cardSize={tableCardSize}
+                onSelectPile={staging.setActivePileIndex}
+                onToggleCard={toggleHandCard}
+                onUnstage={staging.unstage}
+                cardDisabled={false}
+                dragEnabled={dragHandEnabled}
+              />
+            </div>
+            <div className="flex min-w-0 flex-1 items-start gap-2">
+              <div className="min-w-0 flex-1">
+                <StagingHandDropZone>
+                  <CardFan
+                    cards={handCards}
+                    selectedIds={handSelectedIds}
+                    onToggle={toggleHandCard}
+                    disabled={false}
+                    dragEnabled={dragHandEnabled}
+                    sortMode={handSortMode}
+                    onSortModeChange={setHandSortMode}
+                    showSortControls={false}
+                    size={tableCardSize}
+                    justDrawnCardId={justDrawnCardId}
+                  />
+                </StagingHandDropZone>
+              </div>
+              <div className="flex shrink-0 flex-col items-end gap-1 pt-0.5">
+                <p className="text-xs font-bold text-[var(--accent-soft)]">Your hand</p>
+                <div className="flex gap-1 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setHandSortMode("suit")}
+                    className={`rounded-full px-2 py-0.5 font-semibold ${
+                      handSortMode === "suit"
+                        ? "bg-[var(--accent)] text-[#2c1810]"
+                        : "border border-[var(--card-border)] text-[var(--muted)]"
+                    }`}
+                  >
+                    Suit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHandSortMode("rank")}
+                    className={`rounded-full px-2 py-0.5 font-semibold ${
+                      handSortMode === "rank"
+                        ? "bg-[var(--accent)] text-[#2c1810]"
+                        : "border border-[var(--card-border)] text-[var(--muted)]"
+                    }`}
+                  >
+                    Rank
+                  </button>
+                </div>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex shrink-0 flex-col items-stretch justify-end gap-1 pb-0.5">
               {isMyTurn && table.turnPhase === "discard" && !isOpeningHandMode && !canLayOff ? (
                 <button
                   type="button"
@@ -1237,39 +1259,11 @@ export function GameTable({ session, backHref, headerLabel, headerExtra }: GameT
               ) : null}
             </div>
           </div>
-          <div className="mb-1.5">
-            <StagingPiles
-              piles={staging.piles}
-              activePileIndex={staging.activePileIndex}
-              selectedIds={handSelectedIds}
-              onSelectPile={staging.setActivePileIndex}
-              onToggleCard={toggleHandCard}
-              onUnstage={staging.unstage}
-              onStageSelected={handleStageSelected}
-              canStage={stageSelectionIds.length > 0}
-              cardDisabled={false}
-              dragEnabled={dragHandEnabled}
-            />
-          </div>
-          <StagingHandDropZone>
-            <CardFan
-              cards={handCards}
-              selectedIds={handSelectedIds}
-              onToggle={toggleHandCard}
-              disabled={false}
-              dragEnabled={dragHandEnabled}
-              sortMode={handSortMode}
-              onSortModeChange={setHandSortMode}
-              showSortControls={false}
-              size={TABLE_CARD_SIZE}
-              justDrawnCardId={justDrawnCardId}
-            />
-          </StagingHandDropZone>
           {status ? <p className="mt-0 text-xs font-semibold text-[var(--danger)]">{status}</p> : null}
         </div>
       ) : null}
       <DragOverlay dropAnimation={null}>
-        {draggingCard ? <HandCardDragOverlay card={draggingCard} size={TABLE_CARD_SIZE} /> : null}
+        {draggingCard ? <HandCardDragOverlay card={draggingCard} size={tableCardSize} /> : null}
       </DragOverlay>
       </DndContext>
 

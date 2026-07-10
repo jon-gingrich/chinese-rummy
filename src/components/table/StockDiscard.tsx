@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import type { Card } from "../../../convex/lib/rules/types";
-import { scaledCardDimensions } from "../../lib/cardDisplay";
+import { scaledCardDimensions, type CardSize } from "../../lib/cardDisplay";
 import { TABLE_CARD_SIZE } from "../../lib/feltLayout";
 import { useCardScale } from "../../contexts/PlayerPreferencesContext";
 import { PlayingCard } from "../cards/PlayingCard";
@@ -16,11 +16,10 @@ type StockDiscardProps = {
   turnPhase: "draw" | "discard" | "rummyWindow" | "reshuffle";
   busy: boolean;
   drawingSource?: "stock" | "discard" | null;
+  cardSize?: CardSize;
   onDrawStock: () => void;
   onDrawDiscard: () => void;
 };
-
-const PILE_SIZE = TABLE_CARD_SIZE;
 const FLYING_CARD_DELAYS_MS = [0, 120, 240, 360, 480];
 
 function PileLabel({ children }: { children: ReactNode }) {
@@ -38,6 +37,7 @@ export function StockDiscard({
   turnPhase,
   busy,
   drawingSource = null,
+  cardSize = TABLE_CARD_SIZE,
   onDrawStock,
   onDrawDiscard,
 }: StockDiscardProps) {
@@ -45,10 +45,10 @@ export function StockDiscard({
   const isReshuffling = turnPhase === "reshuffle";
   const drawPhase =
     isMyTurn && (turnPhase === "draw" || turnPhase === "rummyWindow");
-  const pileDims = scaledCardDimensions(PILE_SIZE, cardScale);
+  const pileDims = scaledCardDimensions(cardSize, cardScale);
 
   return (
-    <div className="relative flex items-start justify-center gap-5 md:gap-7">
+    <div className="relative flex items-start justify-center gap-3 md:gap-7">
       {isReshuffling ? (
         <div
           className="reshuffle-label-pulse pointer-events-none absolute -top-7 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full border border-[var(--gold)]/35 bg-black/60 px-3 py-1 text-[11px] font-semibold tracking-wide text-[var(--gold)]"
@@ -67,7 +67,7 @@ export function StockDiscard({
           <PlayingCard
             card={{ id: "stock", suit: "spades", rank: "A", deckIndex: 0 }}
             faceDown
-            size={PILE_SIZE}
+            size={cardSize}
             highlighted={drawPhase && canDrawStock}
             disabled={isReshuffling || !drawPhase || busy || !canDrawStock}
             onClick={onDrawStock}
@@ -113,7 +113,7 @@ export function StockDiscard({
                     deckIndex: 0,
                   }}
                   faceDown
-                  size={PILE_SIZE}
+                  size={cardSize}
                   disabled
                 />
               </div>
@@ -125,7 +125,7 @@ export function StockDiscard({
           <div className={drawingSource === "discard" ? "pile-draw-pickup" : ""}>
             <PlayingCard
               card={topDiscard}
-              size={PILE_SIZE}
+              size={cardSize}
               highlighted={drawPhase && canDrawDiscard}
               disabled={isReshuffling || !drawPhase || busy || !canDrawDiscard}
               onClick={onDrawDiscard}

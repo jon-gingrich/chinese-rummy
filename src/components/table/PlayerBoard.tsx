@@ -2,7 +2,7 @@
 
 import type { OpeningMeld, TableMeld } from "../../../convex/lib/rules/types";
 import type { InsertionGap } from "../../../convex/lib/rules/layoffs";
-import { seatSlotForOffset, type SeatSlot } from "../../lib/cardDisplay";
+import { seatSlotForOffset, type CardSize, type SeatSlot } from "../../lib/cardDisplay";
 import { TABLE_CARD_SIZE } from "../../lib/feltLayout";
 import { gapsForMeld, MeldSpread } from "../cards/MeldSpread";
 
@@ -27,14 +27,14 @@ const SLOT_ALIGN: Record<SeatSlot, string> = {
   "top-right": "items-end justify-start",
 };
 
-/** Side/corner seats stack melds so long runs get the full column width. */
+/** Prefer a horizontal row of melds so opponent boards stay short and avoid scrollbars. */
 const MELD_LAYOUT: Record<SeatSlot, string> = {
-  top: "flex max-w-full flex-wrap justify-center gap-3 md:gap-4",
-  bottom: "flex max-w-full flex-wrap justify-center gap-3 md:gap-4",
-  left: "flex w-full min-w-0 flex-col items-start gap-3 md:gap-4",
-  right: "flex w-full min-w-0 flex-col items-end gap-3 md:gap-4",
-  "top-left": "flex w-full min-w-0 flex-col items-start gap-3 md:gap-4",
-  "top-right": "flex w-full min-w-0 flex-col items-end gap-3 md:gap-4",
+  top: "flex w-full max-w-full flex-wrap justify-center gap-2 md:gap-3",
+  bottom: "flex w-full max-w-full flex-wrap justify-center gap-2 md:gap-3",
+  left: "flex w-full max-w-full flex-wrap items-start justify-start gap-2 md:gap-3",
+  right: "flex w-full max-w-full flex-wrap items-start justify-end gap-2 md:gap-3",
+  "top-left": "flex w-full max-w-full flex-wrap items-start justify-start gap-2 md:gap-3",
+  "top-right": "flex w-full max-w-full flex-wrap items-start justify-end gap-2 md:gap-3",
 };
 
 type PlayerBoardProps = {
@@ -43,6 +43,7 @@ type PlayerBoardProps = {
   melds: TableMeld[];
   pendingMelds?: OpeningMeld[];
   highlightMeldIds?: Set<string>;
+  cardSize?: CardSize;
   onMeldClick?: (meldId: string) => void;
   layOffGapTargets?: Array<{ meldId: string; gap: InsertionGap }>;
   activeDropGapId?: string | null;
@@ -58,6 +59,7 @@ export function PlayerBoard({
   melds,
   pendingMelds = [],
   highlightMeldIds = new Set(),
+  cardSize = TABLE_CARD_SIZE,
   onMeldClick,
   layOffGapTargets = [],
   activeDropGapId = null,
@@ -78,7 +80,7 @@ export function PlayerBoard({
   ];
 
   return (
-    <div className={`flex min-h-0 min-w-0 shrink-0 flex-col gap-2 ${SLOT_ALIGN[slot]}`}>
+    <div className={`flex min-h-0 min-w-0 shrink-0 flex-col gap-1.5 ${SLOT_ALIGN[slot]}`}>
       <div
         className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-1 text-xs font-bold shadow-md ${
           player.isActive
@@ -125,7 +127,7 @@ export function PlayerBoard({
                 <MeldSpread
                   meld={meld}
                   meldId={meld.id}
-                  size={TABLE_CARD_SIZE}
+                  size={cardSize}
                   highlighted={highlighted}
                   insertionGaps={meldGaps}
                   activeDropGapId={activeDropGapId}

@@ -1,13 +1,15 @@
 import type { Card, NaturalRank, WildDeclaration } from "../../convex/lib/rules/types";
 
-export type CardSize = "xs" | "sm" | "md" | "lg" | "xl";
+export type CardSize = "xxs" | "xs" | "sm" | "md" | "lg" | "xl";
 
 export const CARD_DIMENSIONS: Record<CardSize, { width: number; height: number }> = {
-  xs: { width: 47, height: 65 },
-  sm: { width: 57, height: 81 },
-  md: { width: 73, height: 101 },
-  lg: { width: 94, height: 130 },
-  xl: { width: 108, height: 150 },
+  /** Exactly 50% of `md`; compact-viewport melds on laptop/iPad. */
+  xxs: { width: 46, height: 63 },
+  xs: { width: 59, height: 81 },
+  sm: { width: 71, height: 101 },
+  md: { width: 91, height: 126 },
+  lg: { width: 118, height: 163 },
+  xl: { width: 135, height: 188 },
 };
 
 export type DisplayScale = "small" | "medium" | "large";

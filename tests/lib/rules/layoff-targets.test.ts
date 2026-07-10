@@ -8,7 +8,7 @@ function tableMeld(
   ownerId: string,
   kind: "set" | "run",
   cards: ReturnType<typeof makeCard>[],
-  wildDeclarations: Array<{ cardId: string; asRank: "4" | "5" | "7" | "8" | "9" | "10" }> = [],
+  wildDeclarations: Array<{ cardId: string; asRank: "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10" }> = [],
 ): TableMeld {
   return { id, ownerId, kind, cards, wildDeclarations };
 }
@@ -219,40 +219,85 @@ describe("findLayOffTargets", () => {
     });
   });
 
-  it("offers same-meld relocation even when the freed wild would sit adjacent to another wild", () => {
+  it("does not offer same-meld relocation when the freed wild would sit adjacent to another wild", () => {
     const replaceJoker = makeCard("joker", "JOKER", 0);
-    const endJoker = makeCard("joker", "JOKER", 1);
-    const fourDiamonds = makeCard("diamonds", "4", 1);
+    const startJoker = makeCard("joker", "JOKER", 1);
+    const endJoker = makeCard("joker", "JOKER", 2);
+    const sixDiamonds = makeCard("diamonds", "6", 1);
     const melds = [
       tableMeld(
         "diamond-run",
         "player-1",
         "run",
         [
-          makeCard("diamonds", "3"),
-          replaceJoker,
+          startJoker,
+          makeCard("diamonds", "4"),
           makeCard("diamonds", "5"),
-          makeCard("diamonds", "6"),
+          replaceJoker,
           makeCard("diamonds", "7"),
           makeCard("diamonds", "8"),
-          makeCard("diamonds", "9"),
           endJoker,
         ],
         [
-          { cardId: replaceJoker.id, asRank: "4" },
-          { cardId: endJoker.id, asRank: "10" },
+          { cardId: startJoker.id, asRank: "3" },
+          { cardId: replaceJoker.id, asRank: "6" },
+          { cardId: endJoker.id, asRank: "9" },
         ],
       ),
     ];
 
-    const targets = findLayOffTargets(melds, [fourDiamonds], true, false);
+    const targets = findLayOffTargets(melds, [sixDiamonds], true, false);
+
+    expect(
+      targets.some(
+        (target) =>
+          target.mode === "replaceWild" &&
+          target.replaceWildCardId === replaceJoker.id &&
+          target.relocationDestinations.includes("diamond-run"),
+      ),
+    ).toBe(false);
+  });
+
+  it("offers another owner meld when same-meld relocation would put wilds adjacent", () => {
+    const replaceJoker = makeCard("joker", "JOKER", 0);
+    const startJoker = makeCard("joker", "JOKER", 1);
+    const endJoker = makeCard("joker", "JOKER", 2);
+    const sixDiamonds = makeCard("diamonds", "6", 1);
+    const melds = [
+      tableMeld(
+        "diamond-run",
+        "player-1",
+        "run",
+        [
+          startJoker,
+          makeCard("diamonds", "4"),
+          makeCard("diamonds", "5"),
+          replaceJoker,
+          makeCard("diamonds", "7"),
+          makeCard("diamonds", "8"),
+          endJoker,
+        ],
+        [
+          { cardId: startJoker.id, asRank: "3" },
+          { cardId: replaceJoker.id, asRank: "6" },
+          { cardId: endJoker.id, asRank: "9" },
+        ],
+      ),
+      tableMeld("heart-run", "player-1", "run", [
+        makeCard("hearts", "3"),
+        makeCard("hearts", "4"),
+        makeCard("hearts", "5"),
+      ]),
+    ];
+
+    const targets = findLayOffTargets(melds, [sixDiamonds], true, false);
 
     expect(targets).toContainEqual({
-      cardId: fourDiamonds.id,
+      cardId: sixDiamonds.id,
       meldId: "diamond-run",
       mode: "replaceWild",
       replaceWildCardId: replaceJoker.id,
-      relocationDestinations: ["diamond-run"],
+      relocationDestinations: ["heart-run"],
     });
   });
 });

@@ -2,7 +2,12 @@
 
 import type { ReactNode } from "react";
 import type { SeatSlot } from "../../lib/cardDisplay";
-import { FELT_GRID_AREA, FELT_SEAT_Z_INDEX, FELT_SEAT_STACK_ALIGN } from "../../lib/feltLayout";
+import {
+  FELT_GRID_AREA,
+  FELT_SEAT_INSET,
+  FELT_SEAT_Z_INDEX,
+  FELT_SEAT_STACK_ALIGN,
+} from "../../lib/feltLayout";
 
 type FeltSeatStackProps = {
   slot: SeatSlot;
@@ -13,7 +18,7 @@ type FeltSeatStackProps = {
 export function FeltSeatStack({ slot, children }: FeltSeatStackProps) {
   return (
     <div
-      className={`flex min-h-0 min-w-0 flex-col gap-3 overflow-visible p-0.5 ${FELT_SEAT_STACK_ALIGN[slot]}`}
+      className={`flex h-full min-h-0 min-w-0 flex-col gap-5 overflow-visible p-0.5 md:gap-6 ${FELT_SEAT_STACK_ALIGN[slot]} ${FELT_SEAT_INSET[slot]}`}
       style={{ gridArea: FELT_GRID_AREA[slot], zIndex: FELT_SEAT_Z_INDEX[slot] }}
     >
       {children}

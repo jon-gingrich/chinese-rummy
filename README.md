@@ -57,3 +57,17 @@ Open [http://localhost:3000](http://localhost:3000).
 - `npm run lint` — ESLint with Convex plugin
 - `npm run typecheck` — TypeScript
 - `npm run test` — Convex function tests (Vitest + convex-test)
+
+## Deploy (Vercel + Convex)
+
+Every Vercel build runs `npx convex deploy` before `pnpm run build` (see `vercel.json`), so schema/function changes ship with the frontend.
+
+1. In the [Convex dashboard](https://dashboard.convex.dev), open your **production** deployment → Settings → Generate a **Production** deploy key (include `deployment:deploy`).
+2. In Vercel → Project → Settings → Environment Variables, add:
+   - Name: `CONVEX_DEPLOY_KEY`
+   - Value: the production deploy key
+   - Environment: **Production** only
+3. (Optional) For preview deployments, generate a **Preview** deploy key on the Convex project settings page and add a second `CONVEX_DEPLOY_KEY` scoped to **Preview** only.
+4. Redeploy. `convex deploy` sets `NEXT_PUBLIC_CONVEX_URL` for the build, then pushes functions to Convex.
+
+Do not set a static `NEXT_PUBLIC_CONVEX_URL` in Vercel for production/preview if you want `convex deploy` to inject the correct deployment URL. Auth provider secrets still live on the Convex deployment (`npx convex env set`), not in Vercel.

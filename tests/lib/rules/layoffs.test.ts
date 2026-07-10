@@ -385,7 +385,7 @@ describe("wild relocation", () => {
     expect(result.error).toBe("Wild replacement is not allowed on sets");
   });
 
-  it("waives adjacency when relocating a wild onto an existing wild", () => {
+  it("rejects relocating a wild next to an existing wild", () => {
     const ownerId = "player-1";
     const activeId = "player-0";
     const wildA = makeCard("joker", "JOKER", 0);
@@ -443,9 +443,7 @@ describe("wild relocation", () => {
       activeId,
     );
 
-    expect(result.error).toBeUndefined();
-    const destination = result.state.melds.find((meld) => meld.id === "run-b");
-    expect(destination?.cards.filter((card) => card.rank === "JOKER")).toHaveLength(2);
+    expect(result.error).toBe("Relocation leaves destination meld invalid");
   });
 
   it("allows relocating a freed wild onto the same run to extend it", () => {

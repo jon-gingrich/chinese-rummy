@@ -129,7 +129,7 @@ A single module with a narrow public interface. All house rules live here. Conve
 
 - Contract schedule: exact meld sizes on opening (ADR 0002).
 - Wild family: jokers + twos; adjacency ban on initial meld placement (ADR 0003, 0004).
-- Wild relocation: on lay-off swap, wild moves to another meld on same owner; adjacency waived (ADR 0003).
+- Wild relocation: on lay-off swap, wild moves to a meld on the same owner (same meld only if non-adjacent); adjacency always enforced (ADR 0003).
 - Post-opening: lay-off only from the turn after opening; opening turn is contract-only (ADR 0005).
 - Going out: must discard last card (ADR 0006).
 - Deadwood scoring: Ace 15; K/Q/J/10 10; 3–9 5; 2/Joker 20.
@@ -216,7 +216,7 @@ This is the highest seam that still covers the riskiest logic (wild adjacency, e
 ### What makes a good test
 
 - Assert **observable outcomes**: legal/illegal, resulting melds, scores, whose turn, opened flag — not internal helpers.
-- One scenario per house-rule edge case; name tests after table situations (“rejects adjacent wilds in set”, “allows wild relocation without adjacency”, “cannot lay off on opening turn”).
+- One scenario per house-rule edge case; name tests after table situations (“rejects adjacent wilds in set”, “rejects adjacent wilds on relocation”, “cannot lay off on opening turn”).
 - Prefer table-driven tests for the contract schedule (rounds 1–10 opening requirements).
 
 ### Modules tested

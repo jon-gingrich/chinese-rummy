@@ -251,8 +251,7 @@ export function findRelocationDestinations(
   const destinations: string[] = [];
   for (const candidate of ownerMelds(allMelds, target.ownerId)) {
     const baseMeld = candidate.id === target.id ? updatedTarget : candidate;
-    // Relocation waives adjacency (ADR 0003); discovery must match apply.
-    if (findValidWildRanksForMeld(baseMeld, wildCard, true).length > 0) {
+    if (findValidWildRanksForMeld(baseMeld, wildCard).length > 0) {
       destinations.push(candidate.id);
     }
   }
@@ -288,7 +287,7 @@ export function findValidRelocationRanks(
   }
 
   const baseMeld = destination.id === target.id ? updatedTarget : destination;
-  return findValidWildRanksForMeld(baseMeld, wildCard, true);
+  return findValidWildRanksForMeld(baseMeld, wildCard);
 }
 
 function replaceableWilds(meld: TableMeld, card: Card): string[] {
@@ -433,12 +432,10 @@ function applyReplacement(
       ? validateSetStructure(
           updatedDestination.cards,
           updatedDestination.wildDeclarations,
-          true,
         )
       : validateRunStructure(
           updatedDestination.cards,
           updatedDestination.wildDeclarations,
-          true,
         );
   if (!destinationValid) {
     return { error: "Relocation leaves destination meld invalid" };

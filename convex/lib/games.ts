@@ -338,15 +338,24 @@ export async function assertHumanParticipant(
   ctx: QueryCtx | MutationCtx,
   gameId: Id<"games">,
   userId: Id<"users">,
+  options?: { requireActive?: boolean },
 ) {
   const memberships = await ctx.db
     .query("gameParticipants")
     .withIndex("by_user", (q) => q.eq("userId", userId))
     .collect();
 
-  const membership = memberships.find(
-    (entry) => entry.gameId === gameId && entry.status === "playing",
-  );
+  const requireActive = options?.requireActive ?? false;
+  const membership = memberships.find((entry) => {
+    if (entry.gameId !== gameId) {
+      return false;
+    }
+    if (requireActive) {
+      return entry.status === "playing";
+    }
+    // Finished memberships still need read access for the game-end celebration.
+    return entry.status === "playing" || entry.status === "finished";
+  });
   if (!membership) {
     throw new Error("You are not in this game");
   }

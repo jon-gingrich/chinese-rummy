@@ -40,7 +40,7 @@ ${CONTRACT_ROWS}`,
 
 Wild adjacency: wilds may not occupy adjacent slots in a meld. No joker-next-to-joker, no two-next-to-two, and no joker-next-to-two.
 
-Wild relocation: when a natural card replaces a wild during lay-off, the displaced wild must move to a set or run on the same player's board (including extending the same meld). Adjacency rules do not apply during relocation.`,
+Wild relocation: when a natural card replaces a wild during lay-off, the displaced wild must move to a set or run on the same player's board (including extending the same meld when that keeps wilds non-adjacent). Wild adjacency still applies — if the current meld has no legal slot, the wild must go to another meld on that board.`,
   },
   {
     id: "layOff",

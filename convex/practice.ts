@@ -38,8 +38,9 @@ async function getPracticeGameForUser(
   ctx: Parameters<typeof getGameDocument>[0],
   gameId: Id<"games">,
   userId: Id<"users">,
+  options?: { requireActive?: boolean },
 ) {
-  await assertHumanParticipant(ctx, gameId, userId);
+  await assertHumanParticipant(ctx, gameId, userId, options);
   return await getGameDocument(ctx, gameId);
 }
 
@@ -154,7 +155,9 @@ export const draw = mutation({
   returns: actionResultValidator,
   handler: async (ctx, args) => {
     const user = await getCurrentUser(ctx);
-    const game = await getPracticeGameForUser(ctx, args.gameId, user._id);
+    const game = await getPracticeGameForUser(ctx, args.gameId, user._id, {
+      requireActive: true,
+    });
     const state = game.state as GameState;
     const result = applyAction(state, { kind: "draw", source: args.source }, user._id);
     return await persistGameState(ctx, game, result.state, user._id, result.error);
@@ -169,7 +172,9 @@ export const discard = mutation({
   returns: actionResultValidator,
   handler: async (ctx, args) => {
     const user = await getCurrentUser(ctx);
-    const game = await getPracticeGameForUser(ctx, args.gameId, user._id);
+    const game = await getPracticeGameForUser(ctx, args.gameId, user._id, {
+      requireActive: true,
+    });
     const state = game.state as GameState;
     const result = applyAction(state, { kind: "discard", card: args.card }, user._id);
     return await persistGameState(ctx, game, result.state, user._id, result.error);
@@ -184,7 +189,9 @@ export const open = mutation({
   returns: actionResultValidator,
   handler: async (ctx, args) => {
     const user = await getCurrentUser(ctx);
-    const game = await getPracticeGameForUser(ctx, args.gameId, user._id);
+    const game = await getPracticeGameForUser(ctx, args.gameId, user._id, {
+      requireActive: true,
+    });
     const state = game.state as GameState;
     const result = applyAction(state, { kind: "open", melds: args.melds }, user._id);
     return await persistGameState(ctx, game, result.state, user._id, result.error);
@@ -196,7 +203,9 @@ export const callRummy = mutation({
   returns: actionResultValidator,
   handler: async (ctx, args) => {
     const user = await getCurrentUser(ctx);
-    const game = await getPracticeGameForUser(ctx, args.gameId, user._id);
+    const game = await getPracticeGameForUser(ctx, args.gameId, user._id, {
+      requireActive: true,
+    });
     const state = game.state as GameState;
     const result = applyCallRummy(state, user._id);
     return await persistGameState(ctx, game, result.state, user._id, result.error);
@@ -208,7 +217,9 @@ export const takeBackDiscard = mutation({
   returns: actionResultValidator,
   handler: async (ctx, args) => {
     const user = await getCurrentUser(ctx);
-    const game = await getPracticeGameForUser(ctx, args.gameId, user._id);
+    const game = await getPracticeGameForUser(ctx, args.gameId, user._id, {
+      requireActive: true,
+    });
     const state = game.state as GameState;
     const result = applyTakeBackDiscard(state, user._id);
     return await persistGameState(ctx, game, result.state, user._id, result.error);
@@ -227,7 +238,9 @@ export const layOff = mutation({
   returns: actionResultValidator,
   handler: async (ctx, args) => {
     const user = await getCurrentUser(ctx);
-    const game = await getPracticeGameForUser(ctx, args.gameId, user._id);
+    const game = await getPracticeGameForUser(ctx, args.gameId, user._id, {
+      requireActive: true,
+    });
     const state = game.state as GameState;
     const result = applyAction(
       state,
@@ -250,7 +263,9 @@ export const continueRound = mutation({
   returns: actionResultValidator,
   handler: async (ctx, args) => {
     const user = await getCurrentUser(ctx);
-    const game = await getPracticeGameForUser(ctx, args.gameId, user._id);
+    const game = await getPracticeGameForUser(ctx, args.gameId, user._id, {
+      requireActive: true,
+    });
     const state = game.state as GameState;
 
     let nextState: GameState;

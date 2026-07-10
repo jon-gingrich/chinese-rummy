@@ -27,7 +27,7 @@ type CardFanProps = {
   sortMode: HandSortMode;
   onSortModeChange: (mode: HandSortMode) => void;
   showSortControls?: boolean;
-  size?: "md" | "lg";
+  size?: "sm" | "md" | "lg";
   justDrawnCardId?: string | null;
 };
 
