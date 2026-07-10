@@ -1,7 +1,7 @@
 "use client";
 
 import type { Card } from "../../convex/lib/rules/types";
-import { scaledCardDimensions } from "../lib/cardDisplay";
+import { scaledCardDimensions, type CardSize } from "../lib/cardDisplay";
 import { useCardScale } from "../contexts/PlayerPreferencesContext";
 import {
   FAN_JUST_DRAWN_LIFT_PX,
@@ -27,7 +27,7 @@ type CardFanProps = {
   sortMode: HandSortMode;
   onSortModeChange: (mode: HandSortMode) => void;
   showSortControls?: boolean;
-  size?: "sm" | "md" | "lg";
+  size?: CardSize;
   justDrawnCardId?: string | null;
 };
 
